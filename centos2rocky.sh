@@ -16,7 +16,7 @@ current_url=https://mirror.rockylinux.org/rocky
 packages_to_swap=(
   centos-backgrounds \
   centos-indexhtml \
-  centos-repos \
+  centos-linux-repos \
   centos-logos \
   centos-gpg-keys \
   centos-linux-release)
