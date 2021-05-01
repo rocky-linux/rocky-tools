@@ -13,13 +13,15 @@ SUPPORTED_RELEASE="8.3"
 SUPPORTED_MAJOR="8"
 current_url=https://mirror.rockylinux.org/rocky
 # These are packages that can be swapped safely over and will have more added over time.
-packages_to_swap=(
+candidates_to_swap=(
   centos-backgrounds \
   centos-indexhtml \
   centos-linux-repos \
   centos-logos \
   centos-gpg-keys \
   centos-linux-release)
+
+  packages_to_swap=($(rpm -q --queryformat="%{NAME}\n" "${candidates_to_swap[@]}" | grep -v "not installed"))
 
 # Release packages that are part of SIG's should be listed below when they are available.
 #sigs_to_swap=()
