@@ -76,8 +76,9 @@ generate_rpm_info() {
 
 package_swaps() {
   rpm -e --nodeps "${packages_to_swap[@]}"
-  rpm -ihv ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-release-${SUPPORTED_RELEASE}-11.el8.x86_64.rpm \
-           ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-repos-${SUPPORTED_MAJOR}-11.el8.x86_64.rpm
+  rpm -ihv ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-release-${SUPPORTED_RELEASE}-11.el8.noarch.rpm \
+           ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-repos-${SUPPORTED_RELEASE}-11.el8.noarch.rpm \
+           ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-gpg-keys-${SUPPORTED_RELEASE}-11.el8.noarch.rpm
   if [ $? -eq 0 ]; then
     echo "Removing dnf cache"
     rm -rf /var/cache/{yum,dnf}
