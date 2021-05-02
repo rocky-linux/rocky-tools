@@ -12,6 +12,8 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "Either use sudo or 'su -c ${0}'"
 fi
 
+export LANG=en_US.UTF-8
+
 SUPPORTED_RELEASE="8.3"
 SUPPORTED_MAJOR="8"
 current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages"
