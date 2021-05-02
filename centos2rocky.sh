@@ -11,7 +11,7 @@ fi
 
 SUPPORTED_RELEASE="8.3"
 SUPPORTED_MAJOR="8"
-current_url=https://mirror.rockylinux.org/rocky
+current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages"
 # These are packages that can be swapped safely over and will have more added over time.
 packages_to_swap=(
   centos-backgrounds \
@@ -20,6 +20,9 @@ packages_to_swap=(
   centos-logos \
   centos-gpg-keys \
   centos-linux-release)
+
+packages_that_exist=($(rpm -q --queryformat="%{NAME}\n" "${packages_to_swap[@]}" | grep -v "not installed"))
+release_to_install=($(curl -s ${REPO_URL} | awk -F '"' '/rocky-repos|rocky-gpg-keys|rocky-release/ {print $2}'))
 
 # Release packages that are part of SIG's should be listed below when they are available.
 #sigs_to_swap=()
@@ -73,10 +76,20 @@ generate_rpm_info() {
 }
 
 package_swaps() {
-  rpm -e --nodeps "${packages_to_swap[@]}"
-  rpm -ihv ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-release-${SUPPORTED_RELEASE}-11.el8.x86_64.rpm \
-           ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-repos-${SUPPORTED_MAJOR}-11.el8.x86_64.rpm \
-           ${current_url}/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages/rocky-gpg-keys-${SUPPORTED_MAJOR}-11.el8.x86_64.rpm
+  mkdir /root/release
+  pushd /root/release
+
+  for x in "${release_to_install[@]}"; do
+    wget -q "${current_url}/${x}" || { echo "failed to download ${x}" ; exit 20; }
+  done
+
+  # Remove packages we need to swap
+  rpm -e --nodeps "${packages_that_exist[@]}"
+
+  # Install our release
+  rpm -ihv "${release_to_install[@]}"
+
+  # Distrosync if the above succeeded
   if [ $? -eq 0 ]; then
     echo "Removing dnf cache"
     rm -rf /var/cache/{yum,dnf}
@@ -86,6 +99,7 @@ package_swaps() {
   else
     exit_message "We failed to install the release package."
   fi
+  popd
 }
 
 sig_swaps() {
@@ -104,6 +118,9 @@ module_check() {
     esac
   done
   if [ ${#unknown_modules[@]} -gt 0 ]; then
+    for x in "${unknown_modules[@]}"; do
+      echo "${x}"
+    done
     echo "There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?"
     select yn in "Yes" "No"; do
       case $yn in
@@ -159,8 +176,8 @@ while getopts "hrVR" option; do
   esac
 done
 
-echo "Ensuring rpm, yum, and curl are here."
-for pkg in rpm yum curl; do
+echo "Ensuring rpm, yum, and wget are here."
+for pkg in rpm yum wget curl; do
   bin_check "${pkg}"
 done
 
