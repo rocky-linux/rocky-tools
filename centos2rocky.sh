@@ -1,6 +1,9 @@
 #!/bin/bash
 # label <label@rockylinux.org>
 # Supports only CentOS 8.3
+
+## Rocky is RC status. Using this script means you accept all risks of system instability.
+
 set -e
 unset CDPATH
 
