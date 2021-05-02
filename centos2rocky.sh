@@ -25,7 +25,7 @@ packages_to_swap=(
   centos-linux-release)
 
 packages_that_exist=($(rpm -q --queryformat="%{NAME}\n" "${packages_to_swap[@]}" | grep -v "not installed"))
-release_to_install=($(curl -s ${current_url} | awk -F '"' '/rocky-repos|rocky-gpg-keys|rocky-release/ {print $2}'))
+release_to_install=($(curl -Ls ${current_url} | awk -F '"' '/rocky-repos|rocky-gpg-keys|rocky-release/ {print $2}'))
 
 # Release packages that are part of SIG's should be listed below when they are available.
 #sigs_to_swap=()
