@@ -33,7 +33,7 @@ release_to_install=($(curl -s ${current_url} | awk -F '"' '/rocky-repos|rocky-gp
 #sigs_to_swap=()
 
 # Defaults
-list_enabled=("$(yum repolist enabled | awk '!/repo/ {print $1}')")
+list_enabled=("$(dnf repolist enabled | awk '!/repo/ {print $1}')")
 enabled_modules=("$(dnf module list --enabled | grep rhel | awk '{print $1}')")
 convert_info_dir=/root/convert
 reinstall_all_rpms=false
@@ -99,7 +99,7 @@ package_swaps() {
     echo "Removing dnf cache"
     rm -rf /var/cache/{yum,dnf}
     echo "Ensuring repos are enabled before the package swap"
-    dnf config-manager --set-enabled "${list_enabled[@]}"
+    dnf config-manager --set-enabled ${list_enabled[@]} || { echo "Repo name missing?" ; exit 25; }
     dnf distro-sync -y
   else
     exit_message "We failed to install the release package."
