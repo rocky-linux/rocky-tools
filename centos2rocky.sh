@@ -14,6 +14,9 @@ fi
 
 export LANG=en_US.UTF-8
 
+# Add logfile for debugging later down the line
+logfile=/var/log/centos2rocky.log
+
 SUPPORTED_RELEASE="8.3"
 SUPPORTED_MAJOR="8"
 current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages"
@@ -39,6 +42,7 @@ convert_info_dir=/root/convert
 reinstall_all_rpms=false
 verify_all_rpms=false
 
+
 usage() {
   echo "Usage: ${0##*/} [OPTIONS]"
   echo
@@ -53,7 +57,7 @@ usage() {
 
 exit_message() {
   echo "$1"
-  final_message
+  log final_message
   exit 1
 } >&2
 
@@ -68,7 +72,7 @@ bin_hash() {
 
 bin_check() {
   if ! bin_hash "$1"; then
-    exit_message "'${1}' command not found. Please ensure you are running bash or that your PATH is set correctly."
+    log exit_message "'${1}' command not found. Please ensure you are running bash or that your PATH is set correctly."
   fi
 }
 
@@ -102,17 +106,17 @@ package_swaps() {
     dnf config-manager --set-enabled ${list_enabled[@]} || { echo "Repo name missing?" ; exit 25; }
     dnf distro-sync -y
   else
-    exit_message "We failed to install the release package."
+    log exit_message "We failed to install the release package."
   fi
   popd
 }
 
 sig_swaps() {
-  exit_message "Not Available"
+ log exit_message "Not Available"
 }
 
 module_check() {
-  echo "Finding our modules that are enabled"
+  echo "Finding our modules that are enabled" &2>1 | tee -a $logfile
   for module in "${enabled_modules[@]}"; do
     case ${module} in
       container-tools|go-toolset|jmc|llvm-toolset|rust-toolset|virt)
@@ -124,13 +128,13 @@ module_check() {
   done
   if [ ${#unknown_modules[@]} -gt 0 ]; then
     for x in "${unknown_modules[@]}"; do
-      echo "${x}"
+      echo "${x}" &2>1 | tee -a $logfile
     done
-    echo "There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?"
+    echo "There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?" &2>1 | tee -a $logfile
     select yn in "Yes" "No"; do
       case $yn in
         Yes)
-          echo "Ensure how to switch modules, so we are leaving."
+          echo "Ensure how to switch modules, so we are leaving." &2>1 | tee -a $logfile
           exit 1
           ;;
         No)
@@ -144,21 +148,30 @@ module_check() {
 # This is just in case. There is a likelihood this will have to be done.
 module_fix() {
   for module in "${enabled_modules[@]}"; do
-    dnf module reset -y "${module}"
+    dnf module reset -y "${module}" &2>1 | tee -a $logfile
     case ${module} in
       container-tools|go-toolset|jmc|llvm-toolset|rust-toolset|virt)
-        dnf module install "${module}" -y
+        dnf module install "${module}" -y &2>1 | tee -a $logfile
         ;;
       *)
-        echo "Unsure how to deal with the module presented."
+        echo "Unsure how to deal with the module presented." &2>1 | tee -a $logfile
         ;;
       esac
     # Final update
-    dnf update -y
+    dnf update -y &2>1 | tee -a $logfile
   done
 }
 
 ## End actual work
+
+# Pipe output of script to $logfile
+log(){
+printf "\e[1;34m$(date): \e[0m$@\n" >> "$logfile"
+    "$@" 2>> "$logfile"
+}
+
+
+
 
 while getopts "hrVR" option; do
   case "$option" in
@@ -175,71 +188,71 @@ while getopts "hrVR" option; do
       reinstall_all_rpms=true
       ;;
     *)
-      echo "Invalid switch."
+      echo "Invalid switch." &2>1 | tee -a $logfile
       usage
       ;;
   esac
 done
 
-echo "Ensuring rpm, yum, and wget are here."
+echo "Ensuring rpm, yum, and wget are here." &2>1 | tee -a $logfile
 for pkg in rpm yum wget curl; do
-  bin_check "${pkg}"
+  log bin_check "${pkg}"
 done
 
-echo "Ensuring your version of CentOS is supported"
+echo "Ensuring your version of CentOS is supported" &2>1 | tee -a $logfile
 if ! old_release=$(rpm -q --whatprovides /etc/redhat-release); then
-  exit_message "You are not running a supported distribution."
+  log exit_message "You are not running a supported distribution."
 fi
 
 if [ "$(echo "${old_release}" | wc -l)" -ne 1 ]; then
-  exit_message "You seem to have package issues. More than one package provides redhat-release."
+  log exit_message "You seem to have package issues. More than one package provides redhat-release."
 fi
 
 if ! grep ${SUPPORTED_RELEASE} -q /etc/redhat-release; then
-  exit_message "${SUPPORTED_RELEASE} is only supported for conversion at this time. Stream is not supported."
+  log exit_message "${SUPPORTED_RELEASE} is only supported for conversion at this time. Stream is not supported."
 fi
 
 if "${verify_all_rpms}"; then
-  generate_rpm_info begin
+  log generate_rpm_info begin
 fi
 
 case "${old_release}" in
   centos-linux-release*);;
   rocky-release*)
-    exit_message "You are already running Rocky."
+    log exit_message "You are already running Rocky."
     ;;
   *)
-    exit_message "You are running an unsupported distribution. Good bye."
+    log exit_message "You are running an unsupported distribution. Good bye."
 esac
 
 # Check our modules before a swap
 module_check
 
 # Actually do the swap and distro-sync
-package_swaps
+log package_swaps
 
 # Fix up modules
 module_fix
 
 # Warning, this is potentially dangerous.
 if "${reinstall_all_rpms}"; then
-  echo "!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!"
+  echo "!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!" &2>1 | tee -a $logfile
   rpm_list=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE} %{VENDOR}\n" | grep CentOS | awk '{print $1}')")
   if [[ -n "${rpm_list[*]}" ]]; then
-    echo "Reinstalling rpms: ${rpm_list[*]}"
-    dnf reinstall "${rpm_list[@]}" -y
+    echo "Reinstalling rpms: ${rpm_list[*]}" &2>1 | tee -a $logfile
+    dnf reinstall "${rpm_list[@]}" -y &2>1 | tee -a $logfile
   fi
   non_rocky_rpm=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE}|%{VENDOR}|%{PACKAGER}\n" |grep -iv Rocky)")
   if [[ -n ${non_rocky_rpm[*]} ]]; then
-    echo "Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org"
-    printf '\t%s\n' "${non_rocky_rpm[@]}"
+    echo "Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org" &2>1 | tee -a $logfile
+    printf '\t%s\n' "${non_rocky_rpm[@]}" &2>1 | tee -a $logfile
   fi
 fi
 
 if "${verify_all_rpms}"; then
-  generate_rpm_info finish
-  echo "You may review the following files:"
-  find /root/convert -type f -name "$(hostname)-rpms-*.log"
+  log generate_rpm_info finish
+  echo "You may review the following files:" &2>1 | tee -a $logfile
+  find /root/convert -type f -name "$(hostname)-rpms-*.log" &2>1| tee -a $logfile
 fi
 
-echo "Done, please reboot your system."
+echo "Done, please reboot your system." &2>1 | tee -a $logfile
