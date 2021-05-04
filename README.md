@@ -24,7 +24,7 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 The `centos2rocky` script pipes everything shown on `stdout` to `/var/log/centos2rocky.log`. 
 
-If you run in to issues executing this script, please submit an issue [here]([Issues · rocky-linux/rocky-tools · GitHub](https://github.com/rocky-linux/rocky-tools/issues)).  
+If you run in to issues executing this script, please submit an issue [here](https://github.com/rocky-linux/rocky-tools/issues).  
 
 Make sure to [include the output log](https://pastebin.com/), and remove any sensitive information. (if any)
 
