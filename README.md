@@ -8,7 +8,7 @@ made for public consumption. For example, conversion scripts or otherwise.
 
 Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
-##### Usage
+### Usage
 
 ```bash
 ./centos2rocky.sh -h
@@ -20,7 +20,7 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 [!! USE WITH CAUTION !!]
 ```
 
-##### Debugging
+### Debugging
 
 The `centos2rocky` script pipes everything shown on `stdout` to `/var/log/centos2rocky.log`. 
 
