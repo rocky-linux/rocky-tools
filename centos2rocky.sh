@@ -114,7 +114,7 @@ package_swaps() {
   rpm -ihv "${release_to_install[@]}"
 
   # Distrosync if the above succeeded
-  if [ $? -eq 0 ]; then
+  if [[ $? -eq 0 ]]; then
     echo "Removing dnf cache"
     rm -rf /var/cache/{yum,dnf}
     echo "Ensuring repos are enabled before the package swap"
@@ -143,7 +143,7 @@ module_check() {
         ;;
     esac
   done
-  if [ ${#unknown_modules[@]} -gt 0 ]; then
+  if [[ ${#unknown_modules[@]} -gt 0 ]]; then
     for x in "${unknown_modules[@]}"; do
       echo "${x}"
     done
