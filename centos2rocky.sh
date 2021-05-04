@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # label <label@rockylinux.org>
 # Supports only CentOS 8.3
 
