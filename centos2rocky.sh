@@ -7,21 +7,25 @@
 (
 # Pass everything to a subshell so the output can be piped to /var/log/centos2rocky.log
 
+errcolor="\033[3;35m"
+nocolor="\033[0m"
+blue="\033[1;35m"
+
 set -e
 unset CDPATH
 
 if [[ "$(id -u)" -ne 0 ]]; then
-  echo "You must run this script as root."
-  echo "Either use sudo or 'su -c ${0}'"
+  echo -e "$errcolor""\nYou must run this script as root.$nocolor"
+  echo -e "$errcolor""Either use sudo or 'su -c ${0}'""$nocolor\n"
 fi
 
 if [[ "$(wget 2>/dev/null || echo $?)" == 127 ]]; then
-  echo "Wget is not installed! Installing it..."
+  echo -e "$blue""Wget is not installed! Installing it...""$nocolor"
   dnf -y install wget
 fi
 
 if [[ "$(curl 2>/dev/null || echo $?)" == 127 ]]; then
-  echo "Curl is not installed! Installing it..."
+  echo -e "$blue""Curl is not installed! Installing it...""$nocolor"
   dnf -y install curl libcurl
 fi
 
@@ -71,12 +75,12 @@ exit_message() {
 } >&2
 
 final_message() {
-  echo "An error occurred while we were attempting to convert your system to Rocky Linux. Your system may be unstable. Script will now exit to prevent possible damage."
+  echo -e "$errcolor""An error occurred while we were attempting to convert your system to Rocky Linux. Your system may be unstable. Script will now exit to prevent possible damage.""$nocolor"
   logmessage
 }
 
 logmessage(){
-echo "A log of this installation can be found at /var/log/centos2rocky.log"
+echo -e "$blue""A log of this installation can be found at /var/log/centos2rocky.log""$nocolor"
 }
 
 ## The actual work
@@ -93,9 +97,9 @@ bin_check() {
 
 generate_rpm_info() {
   mkdir /root/convert
-  echo "Creating a list of RPMs installed: $1"
+  echo -e "$blue""Creating a list of RPMs installed: $1""$nocolor"
   rpm -qa --qf "%{NAME}|%{VERSION}|%{RELEASE}|%{INSTALLTIME}|%{VENDOR}|%{BUILDTIME}|%{BUILDHOST}|%{SOURCERPM}|%{LICENSE}|%{PACKAGER}\n" | sort > "${convert_info_dir}/$(hostname)-rpm-list-$1.log"
-  echo "Verifying RPMs installed against RPM database: $1"
+  echo -e "$blue""Verifying RPMs installed against RPM database: $1""$nocolor\n"
   rpm -Va | sort -k3 > "${convert_info_dir}/$(hostname)-rpm-list-verified-$1.log"
 }
 
@@ -104,7 +108,7 @@ package_swaps() {
   pushd /root/release
 
   for x in "${release_to_install[@]}"; do
-    wget -q "${current_url}/${x}" || { echo "failed to download ${x}" && logmessage ; exit 20; }
+    wget -q "${current_url}/${x}" || { echo -e "$errcolor""failed to download ${x}""$nocolor\n" && logmessage ; exit 20; }
   done
 
   # Remove packages we need to swap
@@ -115,9 +119,9 @@ package_swaps() {
 
   # Distrosync if the above succeeded
   if [[ $? -eq 0 ]]; then
-    echo "Removing dnf cache"
+    echo -e "$blue""Removing dnf cache""$nocolor"
     rm -rf /var/cache/{yum,dnf}
-    echo "Ensuring repos are enabled before the package swap"
+    echo -e "$blue""Ensuring repos are enabled before the package swap""$nocolor"
     dnf config-manager --set-enabled ${list_enabled[@]} || { echo "Repo name missing?" ; exit 25; }
     dnf distro-sync -y
   else
@@ -133,7 +137,7 @@ sig_swaps() {
 }
 
 module_check() {
-  echo "Finding our modules that are enabled"
+  echo -e "$blue""Finding our modules that are enabled""$nocolor"
   for module in "${enabled_modules[@]}"; do
     case ${module} in
       container-tools|go-toolset|jmc|llvm-toolset|rust-toolset|virt)
@@ -147,11 +151,11 @@ module_check() {
     for x in "${unknown_modules[@]}"; do
       echo "${x}"
     done
-    echo "There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?"
+    echo -e "$blue""There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?""$nocolor"
     select yn in "Yes" "No"; do
       case $yn in
         Yes)
-          echo "Unsure how to switch modules, so we are leaving."
+          echo -e "$errcolor""Unsure how to switch modules, so we are leaving.""$nocolor"
           logmessage
           exit 1
           ;;
@@ -172,7 +176,7 @@ module_fix() {
         dnf module install "${module}" -y
         ;;
       *)
-        echo "Unsure how to deal with the module presented."
+        echo -e "$errcolor""Unsure how to deal with the module presented.""$nocolor"
         logmessage
         ;;
       esac
@@ -199,18 +203,18 @@ while getopts "hrVR" option; do
       reinstall_all_rpms=true
       ;;
     *)
-      echo "Invalid switch."
+      echo -e "$errcolor""Invalid switch.""$nocolor"
       usage
       ;;
   esac
 done
 
-echo "Ensuring rpm, yum, and wget are here."
+echo -e "$blue""Ensuring rpm, yum, and wget are here.""$nocolor"
 for pkg in rpm yum wget curl; do
   bin_check "${pkg}"
 done
 
-echo "Ensuring your version of CentOS is supported"
+echo -e "$blue""Ensuring your version of CentOS is supported""$nocolor"
 if ! old_release=$(rpm -q --whatprovides /etc/redhat-release); then
   exit_message "You are not running a supported distribution."
   logmessage
@@ -252,7 +256,7 @@ module_fix
 
 # Warning, this is potentially dangerous.
 if "${reinstall_all_rpms}"; then
-  echo "!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!"
+  echo -e "$errcolor""!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!""$nocolor"
   rpm_list=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE} %{VENDOR}\n" | grep CentOS | awk '{print $1}')")
   if [[ -n "${rpm_list[*]}" ]]; then
     echo "Reinstalling rpms: ${rpm_list[*]}"
@@ -260,18 +264,21 @@ if "${reinstall_all_rpms}"; then
   fi
   non_rocky_rpm=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE}|%{VENDOR}|%{PACKAGER}\n" |grep -iv Rocky)")
   if [[ -n ${non_rocky_rpm[*]} ]]; then
-    echo "Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org"
+    echo -e "$blue""Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org""$nocolor"
     printf '\t%s\n' "${non_rocky_rpm[@]}"
   fi
 fi
 
 if "${verify_all_rpms}"; then
   generate_rpm_info finish
-  echo "You may review the following files:"
+  echo -e "$blue""You may review the following files:""$nocolor"
   find /root/convert -type f -name "$(hostname)-rpms-*.log"
 fi
 
-echo "Done, please reboot your system."
+
+echo -e "\n \n"
+cat /etc/issue | awk 'NR<=15'
+echo -e "$blue\n""Done, please reboot your system.""$nocolor"
 logmessage
 
 ) | tee /var/log/centos2rocky.log
