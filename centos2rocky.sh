@@ -137,6 +137,14 @@ sig_swaps() {
   exit_message "Not Available"
 }
 
+grub_swap() {
+  if [ -d /sys/firmware/efi ]; then
+     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg
+  else
+     grub2-mkconfig -o /boot/grub2/grub.cfg
+  fi
+}
+
 module_check() {
   echo -e "$blue""Finding our modules that are enabled""$nocolor"
   for module in "${enabled_modules[@]}"; do
@@ -251,6 +259,9 @@ module_check
 
 # Actually do the swap and distro-sync
 package_swaps
+
+# Reconfigure grub
+grub_swap
 
 # Fix up modules
 module_fix
