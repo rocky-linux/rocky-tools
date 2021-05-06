@@ -33,7 +33,8 @@ export LANG=en_US.UTF-8
 
 SUPPORTED_RELEASE="8.3"
 SUPPORTED_MAJOR="8"
-current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages"
+ARCH=$(arch)
+current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/${ARCH}/os/Packages"
 # These are packages that can be swapped safely over and will have more added over time.
 packages_to_swap=(
   centos-backgrounds \
@@ -134,6 +135,14 @@ package_swaps() {
 
 sig_swaps() {
   exit_message "Not Available"
+}
+
+grub_swap() {
+  if [ -d /sys/firmware/efi ]; then
+     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg
+  else
+     grub2-mkconfig -o /boot/grub2/grub.cfg
+  fi
 }
 
 module_check() {
@@ -250,6 +259,9 @@ module_check
 
 # Actually do the swap and distro-sync
 package_swaps
+
+# Reconfigure grub
+grub_swap
 
 # Fix up modules
 module_fix
