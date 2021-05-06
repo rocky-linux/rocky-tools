@@ -7,9 +7,9 @@
 (
 # Pass everything to a subshell so the output can be piped to /var/log/centos2rocky.log
 
-errcolor="\033[3;35m"
-nocolor="\033[0m"
-blue="\033[1;35m"
+errcolor=$(tput setaf 1)
+nocolor=$(tput op)
+blue=$(tput setaf 4)
 
 set -e
 unset CDPATH
