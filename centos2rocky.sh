@@ -15,17 +15,17 @@ set -e
 unset CDPATH
 
 if [[ "$(id -u)" -ne 0 ]]; then
-  echo -e "$errcolor""\nYou must run this script as root.$nocolor"
-  echo -e "$errcolor""Either use sudo or 'su -c ${0}'""$nocolor\n"
+  printf '%s\n' "$errcolor" "You must run this script as root.$nocolor" \
+      "${errcolor}Either use sudo or 'su -c ${0}'$nocolor"
 fi
 
 if [[ "$(wget 2>/dev/null || echo $?)" == 127 ]]; then
-  echo -e "$blue""Wget is not installed! Installing it...""$nocolor"
+  printf '%s\n' "${blue}Wget is not installed! Installing it...$nocolor"
   dnf -y install wget
 fi
 
 if [[ "$(curl 2>/dev/null || echo $?)" == 127 ]]; then
-  echo -e "$blue""Curl is not installed! Installing it...""$nocolor"
+  printf "${blue}Curl is not installed! Installing it...$nocolor"
   dnf -y install curl libcurl
 fi
 
@@ -57,30 +57,31 @@ reinstall_all_rpms=false
 verify_all_rpms=false
 
 usage() {
-  echo "Usage: ${0##*/} [OPTIONS]"
-  echo
-  echo "Options:"
-  echo "-h displays this help"
-  echo "-r Converts to rocky"
-  echo "-V Verifies switch"
-  echo "-R Reinstall all packages"
-  echo "   !! USE WITH CAUTION !!"
+  printf '%s\n' \
+      "Usage: ${0##*/} [OPTIONS]" \
+      '' \
+      'Options:' \
+      '-h displays this help' \
+      '-r Converts to rocky' \
+      '-V Verifies switch' \
+      '-R Reinstall all packages' \
+      '   !! USE WITH CAUTION !!'
   exit 1
 } >&2
 
 exit_message() {
-  echo "$1"
+  printf '%s\n' "$1"
   final_message
   exit 1
 } >&2
 
 final_message() {
-  echo -e "$errcolor""An error occurred while we were attempting to convert your system to Rocky Linux. Your system may be unstable. Script will now exit to prevent possible damage.""$nocolor"
+  printf '%s\n' "${errcolor}An error occurred while we were attempting to convert your system to Rocky Linux. Your system may be unstable. Script will now exit to prevent possible damage.$nocolor"
   logmessage
 }
 
 logmessage(){
-echo -e "$blue""A log of this installation can be found at /var/log/centos2rocky.log""$nocolor"
+  printf '%s\n' "${blue}A log of this installation can be found at /var/log/centos2rocky.log$nocolor"
 }
 
 ## The actual work
@@ -97,9 +98,9 @@ bin_check() {
 
 generate_rpm_info() {
   mkdir /root/convert
-  echo -e "$blue""Creating a list of RPMs installed: $1""$nocolor"
+  printf '%s\n' "${blue}Creating a list of RPMs installed: $1$nocolor"
   rpm -qa --qf "%{NAME}|%{VERSION}|%{RELEASE}|%{INSTALLTIME}|%{VENDOR}|%{BUILDTIME}|%{BUILDHOST}|%{SOURCERPM}|%{LICENSE}|%{PACKAGER}\n" | sort > "${convert_info_dir}/$(hostname)-rpm-list-$1.log"
-  echo -e "$blue""Verifying RPMs installed against RPM database: $1""$nocolor\n"
+  printf '%s\n' "${blue}Verifying RPMs installed against RPM database: $1$nocolor" ''
   rpm -Va | sort -k3 > "${convert_info_dir}/$(hostname)-rpm-list-verified-$1.log"
 }
 
@@ -108,7 +109,11 @@ package_swaps() {
   pushd /root/release
 
   for x in "${release_to_install[@]}"; do
-    wget -q "${current_url}/${x}" || { echo -e "$errcolor""failed to download ${x}""$nocolor\n" && logmessage ; exit 20; }
+    wget -q "${current_url}/${x}" || {
+      printf '%s\n' "${errcolor}failed to download ${x}$nocolor" '' &&
+      logmessage
+      exit 20
+    }
   done
 
   # Remove packages we need to swap
@@ -119,10 +124,13 @@ package_swaps() {
 
   # Distrosync if the above succeeded
   if [[ $? -eq 0 ]]; then
-    echo -e "$blue""Removing dnf cache""$nocolor"
+    printf '%s\n' "${blue}Removing dnf cache$nocolor"
     rm -rf /var/cache/{yum,dnf}
-    echo -e "$blue""Ensuring repos are enabled before the package swap""$nocolor"
-    dnf config-manager --set-enabled ${list_enabled[@]} || { echo "Repo name missing?" ; exit 25; }
+    printf '%s\n' "${blue}Ensuring repos are enabled before the package swap$nocolor"
+    dnf config-manager --set-enabled ${list_enabled[@]} || {
+      printf '%s\n' 'Repo name missing?'
+      exit 25
+    }
     dnf distro-sync -y
   else
     exit_message "We failed to install the release package."
@@ -137,7 +145,7 @@ sig_swaps() {
 }
 
 module_check() {
-  echo -e "$blue""Finding our modules that are enabled""$nocolor"
+  printf '%s\n' "${blue}Finding our modules that are enabled$nocolor"
   for module in "${enabled_modules[@]}"; do
     case ${module} in
       container-tools|go-toolset|jmc|llvm-toolset|rust-toolset|virt)
@@ -148,14 +156,12 @@ module_check() {
     esac
   done
   if [[ ${#unknown_modules[@]} -gt 0 ]]; then
-    for x in "${unknown_modules[@]}"; do
-      echo "${x}"
-    done
-    echo -e "$blue""There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?""$nocolor"
+    printf '%s\n' "${unknown_modules[@]}" \
+	"${blue}There are some modules that are unsure of how to handle. This normally shouldn't happen. Do you want to resolve this yourself (Yes) or continue (No)?$nocolor"
     select yn in "Yes" "No"; do
       case $yn in
         Yes)
-          echo -e "$errcolor""Unsure how to switch modules, so we are leaving.""$nocolor"
+          printf '%s\n' "${errcolor}Unsure how to switch modules, so we are leaving.$nocolor"
           logmessage
           exit 1
           ;;
@@ -176,7 +182,7 @@ module_fix() {
         dnf module install "${module}" -y
         ;;
       *)
-        echo -e "$errcolor""Unsure how to deal with the module presented.""$nocolor"
+        printf '%s\n' "${errcolor}Unsure how to deal with the module presented.$nocolor"
         logmessage
         ;;
       esac
@@ -203,18 +209,18 @@ while getopts "hrVR" option; do
       reinstall_all_rpms=true
       ;;
     *)
-      echo -e "$errcolor""Invalid switch.""$nocolor"
+      printf '%s\n' "${errcolor}Invalid switch.$nocolor"
       usage
       ;;
   esac
 done
 
-echo -e "$blue""Ensuring rpm, yum, and wget are here.""$nocolor"
+printf '%s\n' "${blue}Ensuring rpm, yum, and wget are here.$nocolor"
 for pkg in rpm yum wget curl; do
   bin_check "${pkg}"
 done
 
-echo -e "$blue""Ensuring your version of CentOS is supported""$nocolor"
+printf '%s\n' "${blue}Ensuring your version of CentOS is supported$nocolor"
 if ! old_release=$(rpm -q --whatprovides /etc/redhat-release); then
   exit_message "You are not running a supported distribution."
   logmessage
@@ -256,29 +262,29 @@ module_fix
 
 # Warning, this is potentially dangerous.
 if "${reinstall_all_rpms}"; then
-  echo -e "$errcolor""!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!""$nocolor"
+  printf '%s\n' "${errcolor}!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!$nocolor"
   rpm_list=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE} %{VENDOR}\n" | grep CentOS | awk '{print $1}')")
   if [[ -n "${rpm_list[*]}" ]]; then
-    echo "Reinstalling rpms: ${rpm_list[*]}"
+    printf '%s ' 'Reinstalling rpms:' "${rpm_list[@]}"
     dnf reinstall "${rpm_list[@]}" -y
   fi
   non_rocky_rpm=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE}|%{VENDOR}|%{PACKAGER}\n" |grep -iv Rocky)")
   if [[ -n ${non_rocky_rpm[*]} ]]; then
-    echo -e "$blue""Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org""$nocolor"
+    printf '%s\n' "${blue}Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org$nocolor"
     printf '\t%s\n' "${non_rocky_rpm[@]}"
   fi
 fi
 
 if "${verify_all_rpms}"; then
   generate_rpm_info finish
-  echo -e "$blue""You may review the following files:""$nocolor"
+  printf '%s\n' "${blue}You may review the following files:$nocolor"
   find /root/convert -type f -name "$(hostname)-rpms-*.log"
 fi
 
 
-echo -e "\n \n"
+printf '\n\n\n'
 cat /etc/issue | awk 'NR<=15'
-echo -e "$blue\n""Done, please reboot your system.""$nocolor"
+printf '%s\n' "$blue" "Done, please reboot your system.$nocolor"
 logmessage
 
 ) | tee /var/log/centos2rocky.log
