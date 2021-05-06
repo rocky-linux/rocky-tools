@@ -33,7 +33,8 @@ export LANG=en_US.UTF-8
 
 SUPPORTED_RELEASE="8.3"
 SUPPORTED_MAJOR="8"
-current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/x86_64/os/Packages"
+ARCH=$(arch)
+current_url="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_RELEASE}/BaseOS/${ARCH}/os/Packages"
 # These are packages that can be swapped safely over and will have more added over time.
 packages_to_swap=(
   centos-backgrounds \
