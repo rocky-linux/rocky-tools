@@ -24,7 +24,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 if ! type curl >/dev/null 2>&1; then
-  printf "${blue}Curl is not installed! Installing it...$nocolor"
+  printf '%s\n' "${blue}Curl is not installed! Installing it...$nocolor"
   dnf -y install curl libcurl
 fi
 
