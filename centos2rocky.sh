@@ -23,11 +23,6 @@ if [[ "$(id -u)" -ne 0 ]]; then
       "${errcolor}Either use sudo or 'su -c ${0}'$nocolor"
 fi
 
-if [[ "$(wget 2>/dev/null || echo $?)" == 127 ]]; then
-  printf '%s\n' "${blue}Wget is not installed! Installing it...$nocolor"
-  dnf -y install wget
-fi
-
 if [[ "$(curl 2>/dev/null || echo $?)" == 127 ]]; then
   printf "${blue}Curl is not installed! Installing it...$nocolor"
   dnf -y install curl libcurl
@@ -113,7 +108,7 @@ package_swaps() {
   pushd /root/release
 
   for x in "${release_to_install[@]}"; do
-    wget -q "${current_url}/${x}" || {
+    curl -s "${current_url}/${x}" > "$x" || {
       printf '%s\n' "${errcolor}failed to download ${x}$nocolor" '' &&
       logmessage
       exit 20
@@ -219,8 +214,8 @@ while getopts "hrVR" option; do
   esac
 done
 
-printf '%s\n' "${blue}Ensuring rpm, yum, and wget are here.$nocolor"
-for pkg in rpm yum wget curl; do
+printf '%s\n' "${blue}Ensuring rpm and yum are here.$nocolor"
+for pkg in rpm yum curl; do
   bin_check "${pkg}"
 done
 
