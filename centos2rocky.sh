@@ -23,7 +23,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
       "${errcolor}Either use sudo or 'su -c ${0}'$nocolor"
 fi
 
-if [[ "$(curl 2>/dev/null || echo $?)" == 127 ]]; then
+if ! type curl >/dev/null 2>&1; then
   printf "${blue}Curl is not installed! Installing it...$nocolor"
   dnf -y install curl libcurl
 fi
