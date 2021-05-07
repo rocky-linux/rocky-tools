@@ -4,8 +4,12 @@
 
 ## Rocky is RC status. Using this script means you accept all risks of system instability.
 
-(
-# Pass everything to a subshell so the output can be piped to /var/log/centos2rocky.log
+# Path to logfile
+logfile=/var/log/centos2rocky.log
+
+# Send all output to the logfile as well as stdout.
+truncate -s0 "$logfile"
+exec > >(tee -a "$logfile") 2> >(tee -a "$logfile" >&2)
 
 errcolor=$(tput setaf 1)
 nocolor=$(tput op)
@@ -81,7 +85,7 @@ final_message() {
 }
 
 logmessage(){
-  printf '%s\n' "${blue}A log of this installation can be found at /var/log/centos2rocky.log$nocolor"
+  printf '%s\n' "${blue}A log of this installation can be found at $logfile$nocolor"
 }
 
 ## The actual work
@@ -286,6 +290,3 @@ printf '\n\n\n'
 cat /etc/issue | awk 'NR<=15'
 printf '%s\n' "$blue" "Done, please reboot your system.$nocolor"
 logmessage
-
-) | tee /var/log/centos2rocky.log
-# Pipe output to /var/log/centos2rocky.log
