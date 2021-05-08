@@ -213,9 +213,6 @@ while getopts "hrVR" option; do
     V)
       verify_all_rpms=true
       ;;
-    R)
-      reinstall_all_rpms=true
-      ;;
     *)
       printf '%s\n' "${errcolor}Invalid switch.$nocolor"
       usage
