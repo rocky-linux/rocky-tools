@@ -48,13 +48,13 @@ logmessage(){
 }
 
 # This just grabs a field from os-release and returns it.
-os-release () {
+os-release () (
     . /etc/os-release
     if ! [[ ${!1} ]]; then
 	return 1
     fi
     printf '%s\n' "${!1}"
-}
+)
 
 # All of the binaries used by this script are available in a EL8 minimal install
 # and are in /bin, so we should not encounter a system where the script doesn't
