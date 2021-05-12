@@ -298,15 +298,17 @@ EOF
       printf '%s\n' 'Repo name missing?'
       exit 25
     }
-    printf '%s\n' "${blue}Enabling modules$nocolor" ''
 
-    # We may very well need to do a reset/install here, but it takes a decent
-    # amount of time, so we're better off just doing an enable unless we end up
-    # with an explicit test case where reset/install is needed.
+    if (( ${#enabled_modules[@]} )); then
+	printf '%s\n' "${blue}Enabling modules$nocolor" ''
+	# We may very well need to do a reset/install here, but it takes a
+	# decent amount of time, so we're better off just doing an enable unless
+	# we end up with an explicit test case where reset/install is needed.
 #    dnf -y module reset "${enabled_modules[@]}"
 #    dnf -y module install "${enabled_modules[@]}"
-    dnf -y module enable "${enabled_modules[@]}" ||
-    	exit_message "Can't enable modules ${enabled_modules[@]}"
+	dnf -y module enable "${enabled_modules[@]}" ||
+    	    exit_message "Can't enable modules ${enabled_modules[@]}"
+    fi
     printf '%s\n' '' "${blue}Syncing packages$nocolor" ''
     dnf -y distro-sync || exit_message "Error during distro-sync."
 }
