@@ -21,6 +21,7 @@ blue=$(tput setaf 4)
 nocolor=$(tput op)
 
 export LANG=en_US.UTF-8
+shopt -s nullglob
 
 SUPPORTED_MAJOR="8"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
@@ -78,7 +79,7 @@ bin_check() {
     fi
 
     local -a missing
-    for bin in rpm dnf awk column tee tput mkdir cat arch; do
+    for bin in rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir rm; do
 	if ! type "$bin" >/dev/null 2>&1; then
 	    missing+=("$bin")
 	fi
@@ -134,14 +135,31 @@ repoinfo () {
 
     # dnf repoinfo doesn't return the gpgkey, but we need that so we have to get
     # it from the repo file itself.
+    # "end_of_file" is a hack here.  Since it is not a valid dnf setting we know
+    # it won't appear in a .repo file on a line by itself, so it's safe to
+    # search for the string to make the awk parser look all the way to the end
+    # of the file.
     repoinfo_results[Repo-gpgkey]=$(
 	awk '
-	    $1=="['"${repoinfo_results[Repo-id]}"']" {next}
-	    {if (/^\[.*\]$/) {nextfile}
-	     else if (sub(/^gpgkey=file:\/\//,"")) print
-	    }' < "${repoinfo_results[Repo-filename]}"
+	    $0=="['"${repoinfo_results[Repo-id]}"']",$0=="end_of_file" {
+		if (l++ < 1) {next}
+		else if (/^\[.*\]$/) {nextfile}
+		else if (sub(/^gpgkey\s*=\s*file:\/\//,"")) {print; nextfile}
+		else {next}
+	    }
+	' < "${repoinfo_results[Repo-filename]}"
     )
 }
+
+provides_pkg () (
+    set -o pipefail
+    provides=$(dnf -q provides "$1" | awk '{print $1; nextfile}') ||
+	return 1
+    set +o pipefail
+    pkg=$(dnf -q repoquery --queryformat '%{NAME}' "$provides") ||
+    	exit_message "Can't get package name for $provides."
+    printf '%s\n' "$pkg"
+)
 
 collect_system_info () {
     # We need to map rockylinux repository names to the equivalent repositories
@@ -185,6 +203,7 @@ collect_system_info () {
     # First get info for the baseos repo
     repoinfo "${repo_map[baseos]}"
     declare -g -A pkg_map provides_pkg_map
+    declare -g -a addl_provide_removes addl_pkg_removes
     provides_pkg_map=(
 	[rocky-backgrounds]=system-backgrounds
 	[rocky-indexhtml]=redhat-indexhtml
@@ -193,17 +212,21 @@ collect_system_info () {
 	[rocky-gpg-keys]="${repoinfo_results[Repo-gpgkey]}"
 	[rocky-release]=system-release
     )
+    addl_provide_removes=(
+	redhat-release-eula
+    )
 
     for pkg in "${!provides_pkg_map[@]}"; do
 	printf '.'
 	prov=${provides_pkg_map[$pkg]}
-	local provides
-	set -o pipefail
-	provides=$(dnf -q provides "$prov" | awk '{print $1; nextfile}') ||
+	pkg_map[$pkg]=$(provides_pkg $prov) ||
 	    exit_message "Can't get package that provides $prov."
-	set +o pipefail
-	pkg_map[$pkg]=$(dnf -q repoquery --queryformat '%{NAME}' "$provides") ||
-	    exit_message "Can't get package name for $provides."
+    done
+    for prov in "${addl_provide_removes[@]}"; do
+	printf '.'
+	local pkg;
+	pkg=$(provides_pkg $prov) || continue
+	addl_pkg_removes+=("$pkg")
     done
 
     printf '%s\n' '' '' "Found the following system packages which map from $PRETTY_NAME to Rocky Linux 8:"
@@ -229,6 +252,11 @@ collect_system_info () {
 	    printf '%s %s\n' "${installed_pkg_map[$p]}" "$p"
 	done
     )
+
+    if (( ${#addl_pkg_removes[@]} )); then
+	printf '%s\n' '' "In addition to the above the following system packages will be removed:" \
+	    "${addl_pkg_removes[@]}"
+    fi
 
     # Release packages that are part of SIG's should be listed below when they
     # are available.
@@ -278,16 +306,83 @@ generate_rpm_info() {
 }
 
 package_swaps() {
+set -x
     # Use dnf shell to swap the system packages out.
-    if dnf -y shell --nogpg --disablerepo=\* \
+    dnf -y shell --nogpg --disablerepo=\* --noautoremove \
+	--setopt=protected_packages= --setopt=keepcache=True \
 	"${repo_urls[@]/#/--repofrompath=}" <<EOF
-	remove ${installed_pkg_map[@]}
+	remove ${installed_pkg_map[@]} ${addl_pkg_removes[@]}
 	install ${!installed_pkg_map[@]}
 	run
 	exit
 EOF
-    then :
-    else return
+
+    # We need to check to make sure that all of the original system packages
+    # have been removed and all of the new ones have been added. If a package
+    # was supposed to be removed and one with the same name added back then
+    # we're kind of screwed for this check, as we can't be certain, but all the
+    # packages we're adding start with "rocky-*" so this really shouldn't happen
+    # and we can safely not check for it.  The worst that will happen is a rocky
+    # linux package will be removed and then installed again.
+    local -a check_removed check_installed
+    readarray -t check_removed < <(
+	rpm -qa --qf '%{NAME}\n' "${installed_pkg_map[@]}" \
+	    "${addl_pkg_removes[@]}" | sort -u
+    )
+
+    if (( ${#check_removed[@]} )); then
+	printf '%s\n' '' "${blue}Packages found on system that should still be removed.  Forcibly removing them with rpm:$nocolor"
+	# Removed packages still found on the system.  Forcibly remove them.
+	for pkg in "${check_removed[@]}"; do
+	    printf '%s\n' "$pkg"
+	    rpm -e --allmatches --nodeps "${check_removed[@]}" ||
+	    rpm -e --allmatches --nodeps --noscripts --notriggers "$pkg"
+	done
+    fi
+
+    # Check to make sure we installed everything we were supposed to.
+    readarray -t check_installed < <(
+	{
+	    printf '%s\n' "${!installed_pkg_map[@]}" | sort -u
+	    rpm -qa --qf '%{NAME}\n' "${!installed_pkg_map[@]}" | sort -u
+	} | sort | uniq -u
+    )
+    if (( ${#check_installed[@]} )); then
+	printf '%s\n' '' "${blue}Some required packages were not installed by dnf.  Attempting to force with rpm:$nocolor"
+
+	# Get a list of rpm packages to package names
+	local -A rpm_map
+	local -a file_list
+	for rpm in /var/cache/dnf/{rockybaseos,rockyappstream}-*/packages/*.rpm
+	do
+	    rpm_map[$(rpm -q --qf '%{NAME}\n' --nodigest "$rpm")]=$rpm
+	done
+
+	# Attempt to install.
+	for pkg in "${check_installed[@]}"; do
+	    printf '%s\n' "$pkg"
+	    if ! rpm -i --force --nodeps --nodigest "${rpm_map[$pkg]}"; then
+		# Try to install the package in just the db, then clean it up.
+		rpm -i --force --justdb --nodeps --nodigest "${rpm_map[$pkg]}"
+
+		# Get list of files that are still causing problems and donk
+		# them.
+		readarray -t file_list < <(
+		    rpm -V "$pkg" | awk '$1!="missing" {print $2}'
+		)
+		for file in "${file_list[@]}"; do
+		    rmdir "$file" ||
+		    rm -f "$file" ||
+		    rm -rf "$file"
+		done
+
+		# Now try re-installing the package to replace the missing
+		# files.  Regardless of the outcome here we just accept it and
+		# move on and hope for the best.
+		rpm -i --reinstall --force --nodeps --nodigest \
+		    "${rpm_map[$pkg]}"
+	    fi
+	done
     fi
 
     # Distrosync
