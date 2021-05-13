@@ -306,7 +306,6 @@ generate_rpm_info() {
 }
 
 package_swaps() {
-set -x
     # Use dnf shell to swap the system packages out.
     dnf -y shell --nogpg --disablerepo=\* --noautoremove \
 	--setopt=protected_packages= --setopt=keepcache=True \
