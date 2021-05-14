@@ -149,9 +149,23 @@ repoinfo () {
 	    }
 	' < "${repoinfo_results[Repo-filename]}"
     )
+
+    # Add an indicator of whether this is a subscription-manager managed
+    # repository.
+    repoinfo_results[Repo-managed]=$(
+	awk '
+            BEGIN {FS="[)(]"}
+            /^# Managed by \(.*\) subscription-manager$/ {print $2}
+        ' < "${repoinfo_results[Repo-filename]}"
+
+    )
 }
 
 provides_pkg () (
+    if [[ ! $1 ]]; then
+	return 0
+    fi
+
     set -o pipefail
     provides=$(dnf -q provides "$1" | awk '{print $1; nextfile}') ||
 	return 1
@@ -168,6 +182,7 @@ collect_system_info () {
     # this which requires downloading the package, so we pick relatively small
     # packages for this.
     declare -g -A repo_map pkg_repo_map
+    declare -g -a managed_repos
     pkg_repo_map=(
 	[baseos]=rootfiles.noarch
 	[appstream]=apr-util-ldap.$ARCH
@@ -200,6 +215,24 @@ collect_system_info () {
     # distro-agnostic provides or a filename.  In a couple of cases we need to
     # jump through hoops to get a filename that is provided specifically by the
     # source distro.
+    # Get info for each repository to determine which ones are subscription
+    # managed.
+    # system-release here is a bit of a hack, but it ensures that the
+    # rocky-repos package will get installed.
+    for r in "${!repo_map[@]}"; do
+	repoinfo "${repo_map[$r]}"
+	if [[ $r == "baseos" ]]; then
+	    local baseos_filename=system-release
+	    if [[ ! ${repoinfo_results[Repo-managed]} ]]; then
+		baseos_filename="${repoinfo_results[Repo-filename]}"
+	    fi
+	    local baseos_gpgkey="${repoinfo_results[Repo-gpgkey]}"
+	fi
+	if [[ ${repoinfo_results[Repo-managed]} ]]; then
+	    managed_repos+=("${repo_map[$r]}")
+	fi
+    done
+
     # First get info for the baseos repo
     repoinfo "${repo_map[baseos]}"
     declare -g -A pkg_map provides_pkg_map
@@ -207,9 +240,9 @@ collect_system_info () {
     provides_pkg_map=(
 	[rocky-backgrounds]=system-backgrounds
 	[rocky-indexhtml]=redhat-indexhtml
-	[rocky-repos]="${repoinfo_results[Repo-filename]}"
+	[rocky-repos]="$baseos_filename"
 	[rocky-logos]=system-logos
-	[rocky-gpg-keys]="${repoinfo_results[Repo-gpgkey]}"
+	[rocky-gpg-keys]="$baseos_gpgkey"
 	[rocky-release]=system-release
     )
     addl_provide_removes=(
@@ -277,8 +310,13 @@ collect_system_info () {
 	set +e +o pipefail
     )
 
-    printf '%s\n' '' "Found the following modules to re-enable at completion:"
-    printf '%s\n' "${enabled_modules[@]}" ''
+    printf '%s\n' '' "Found the following modules to re-enable at completion:" \
+	"${enabled_modules[@]}" ''
+
+    if (( ${#managed_repos[@]} )); then
+	printf '%s\n' '' "In addition, since this system uses subscription-manger the following managed repos will be disabled:" \
+	    "${managed_repos[@]}"
+    fi
 }
 
 convert_info_dir=/root/convert
@@ -354,20 +392,24 @@ EOF
 	local -a file_list
 	for rpm in /var/cache/dnf/{rockybaseos,rockyappstream}-*/packages/*.rpm
 	do
-	    rpm_map[$(rpm -q --qf '%{NAME}\n' --nodigest "$rpm")]=$rpm
+	    rpm_map[$(
+		    rpm -q --qf '%{NAME}\n' --nodigest "$rpm" 2>/dev/null
+		    )]=$rpm
 	done
 
 	# Attempt to install.
 	for pkg in "${check_installed[@]}"; do
 	    printf '%s\n' "$pkg"
-	    if ! rpm -i --force --nodeps --nodigest "${rpm_map[$pkg]}"; then
+	    if ! rpm -i --force --nodeps --nodigest "${rpm_map[$pkg]}" \
+		2>/dev/null; then
 		# Try to install the package in just the db, then clean it up.
-		rpm -i --force --justdb --nodeps --nodigest "${rpm_map[$pkg]}"
+		rpm -i --force --justdb --nodeps --nodigest "${rpm_map[$pkg]}" \
+		    2>/dev/null
 
 		# Get list of files that are still causing problems and donk
 		# them.
 		readarray -t file_list < <(
-		    rpm -V "$pkg" | awk '$1!="missing" {print $2}'
+		    rpm -V "$pkg" 2>/dev/null | awk '$1!="missing" {print $2}'
 		)
 		for file in "${file_list[@]}"; do
 		    rmdir "$file" ||
@@ -379,7 +421,7 @@ EOF
 		# files.  Regardless of the outcome here we just accept it and
 		# move on and hope for the best.
 		rpm -i --reinstall --force --nodeps --nodigest \
-		    "${rpm_map[$pkg]}"
+		    "${rpm_map[$pkg]}" 2>/dev/null
 	    fi
 	done
     fi
@@ -392,6 +434,18 @@ EOF
       printf '%s\n' 'Repo name missing?'
       exit 25
     }
+
+    if (( ${#managed_repos[@]} )); then
+	# Filter the managed repos for ones still in the system.
+	readarray -t managed_repos < <(
+	    dnf -q repolist "${managed_repos[@]}" | awk '$1!="repo" {print $1}'
+	)
+
+	if (( ${#managed_repos[@]} )); then
+	    printf '%s\n' '' "${blue}Disabling subscription managed repos$nocolor."
+	    dnf -y config-manager --disable "${managed_repos[@]}"
+	fi
+    fi
 
     if (( ${#enabled_modules[@]} )); then
 	printf '%s\n' "${blue}Enabling modules$nocolor" ''
