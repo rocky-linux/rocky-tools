@@ -157,7 +157,6 @@ repoinfo () {
             BEGIN {FS="[)(]"}
             /^# Managed by \(.*\) subscription-manager$/ {print $2}
         ' < "${repoinfo_results[Repo-filename]}"
-
     )
 }
 
@@ -186,11 +185,11 @@ collect_system_info () {
     pkg_repo_map=(
 	[baseos]=rootfiles.noarch
 	[appstream]=apr-util-ldap.$ARCH
-	[devel]=quota-devel.$ARCH
 	[ha]=pacemaker-doc.noarch
 	[powertools]=libaec-devel.$ARCH
 	[extras]=epel-release.noarch
     )
+#	[devel]=quota-devel.$ARCH
 
     PRETTY_NAME=$(os-release PRETTY_NAME)
     printf '%s\n' "${blue}Preparing to migrate $PRETTY_NAME to Rocky Linux 8.$nocolor"
@@ -305,8 +304,8 @@ collect_system_info () {
 	dnf -q "${repo_map[@]/#/--repo=}" module list --enabled |
 	awk '
 	    $1 == "@modulefailsafe", /^$/ {next}
-	    $1 == "Name", /^$/ {if (line++>0 && !/^$/) print $1":"$2}
-    	'
+	    $1 == "Name", /^$/ {if ($1!="Name" && !/^$/) print $1":"$2}
+    	' | sort -u
 	set +e +o pipefail
     )
 
