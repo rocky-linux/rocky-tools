@@ -175,6 +175,13 @@ provides_pkg () (
 )
 
 collect_system_info () {
+    # Don't enable these module streams, even if they are enabled in the source
+    # distro.
+    declare -g -a module_excludes
+    module_excludes=(
+	libselinux-python:2.8
+    )
+
     # We need to map rockylinux repository names to the equivalent repositories
     # in the source distro.  To do that we look for known packages in each
     # repository and see what repo they came from.  We need to use repoquery for
@@ -308,6 +315,21 @@ collect_system_info () {
     	' | sort -u
 	set +e +o pipefail
     )
+    # Remove entries matching any excluded modules.
+    if (( ${#module_excludes[@]} )); then
+	printf '%s\n' '' "Excluding modules:" "${module_excludes[@]}"
+	local -A module_check='()'
+	local -a tmparr='()'
+	for m in "${module_excludes[@]}"; do
+	    module_check[$m]=1
+	done
+	for m in "${enabled_modules[@]}"; do
+	    if [[ ! ${module_check[$m]} ]]; then
+		tmparr+=("$m")
+	    fi
+	done
+	enabled_modules=("${tmparr[@]}")
+    fi
 
     printf '%s\n' '' "Found the following modules to re-enable at completion:" \
 	"${enabled_modules[@]}" ''
@@ -456,6 +478,12 @@ EOF
 	dnf -y module enable "${enabled_modules[@]}" ||
     	    exit_message "Can't enable modules ${enabled_modules[@]}"
     fi
+
+    # Make sure that excluded repos are disabled.
+    printf '%s\n' "${blue}Disabling excluded modules$nocolor" ''
+    dnf -y module disable "${module_excludes[@]}" ||
+    	exit_message "Can't disable modules ${module_excludes[@]}"
+
     printf '%s\n' '' "${blue}Syncing packages$nocolor" ''
     dnf -y distro-sync || exit_message "Error during distro-sync."
 }
