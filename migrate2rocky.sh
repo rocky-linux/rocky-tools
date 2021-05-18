@@ -15,7 +15,7 @@ logfile=/var/log/centos2rocky.log
 truncate -s0 "$logfile"
 exec > >(tee -a "$logfile") 2> >(tee -a "$logfile" >&2)
 
-# List nocolor last here so that +x doesn't bork the display.
+# List nocolor last here so that -x doesn't bork the display.
 errcolor=$(tput setaf 1)
 blue=$(tput setaf 4)
 nocolor=$(tput op)
@@ -351,7 +351,6 @@ usage() {
       '-h displays this help' \
       '-r Converts to rocky' \
       '-V Verifies switch' \
-      '-R Reinstall all packages' \
       '   !! USE WITH CAUTION !!'
   exit 1
 } >&2
@@ -470,11 +469,6 @@ EOF
 
     if (( ${#enabled_modules[@]} )); then
 	printf '%s\n' "${blue}Enabling modules$nocolor" ''
-	# We may very well need to do a reset/install here, but it takes a
-	# decent amount of time, so we're better off just doing an enable unless
-	# we end up with an explicit test case where reset/install is needed.
-#    dnf -y module reset "${enabled_modules[@]}"
-#    dnf -y module install "${enabled_modules[@]}"
 	dnf -y module enable "${enabled_modules[@]}" ||
     	    exit_message "Can't enable modules ${enabled_modules[@]}"
     fi
@@ -487,10 +481,6 @@ EOF
     printf '%s\n' '' "${blue}Syncing packages$nocolor" ''
     dnf -y distro-sync || exit_message "Error during distro-sync."
 }
-
-#sig_swaps() {
-#  exit_message "Not Available"
-#}
 
 ## End actual work
 
@@ -506,10 +496,6 @@ while getopts "hrVR" option; do
       ;;
     V)
       verify_all_rpms=true
-      ;;
-    R)
-       exit_message 'Reinstalling all rpms is not supported at this time.'
-#      reinstall_all_rpms=true
       ;;
     *)
       printf '%s\n' "${errcolor}Invalid switch.$nocolor"
@@ -530,21 +516,6 @@ fi
 if [[ $convert_to_rocky ]]; then
     collect_system_info
     package_swaps
-fi
-
-# Warning, this is potentially dangerous.
-if [[ $reinstall_all_rpms ]]; then
-  printf '%s\n' "${errcolor}!! THIS MAY CAUSE ISSUES WITH YOUR SYSTEM !!$nocolor"
-  rpm_list=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE} %{VENDOR}\n" | grep CentOS | awk '{print $1}')")
-  if [[ -n "${rpm_list[*]}" ]]; then
-    printf '%s ' 'Reinstalling rpms:' "${rpm_list[@]}"
-    dnf reinstall "${rpm_list[@]}" -y
-  fi
-  non_rocky_rpm=("$(rpm -qa --qf "%{NAME}-%{VERSION}-%{RELEASE}|%{VENDOR}|%{PACKAGER}\n" |grep -iv Rocky)")
-  if [[ -n ${non_rocky_rpm[*]} ]]; then
-    printf '%s\n' "${blue}Non-Rocky packages are installed. This is generally not an issue. If you see centos packages, you may need to address them and file a bug report at https://bugs.rockylinux.org$nocolor"
-    printf '\t%s\n' "${non_rocky_rpm[@]}"
-  fi
 fi
 
 if [[ $verify_all_rpms && $convert_to_rocky ]]; then
