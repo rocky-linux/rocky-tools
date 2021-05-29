@@ -91,9 +91,15 @@ bin_check() {
 	exit_message "bash >= 4.0 is required for this script."
     fi
 
-    local -a missing
-    for bin in rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir rm \
-	head; do
+    local -a missing bins
+    bins=(
+	rpm dnf awk column tee tput mkdir
+	cat arch sort uniq rmdir rm head
+    )
+    if [[ $update_efi ]]; then
+	bins+=(findmnt grub2-mkconfig efibootmgr)
+    fi
+    for bin in "${bins[@]}"; do
 	if ! type "$bin" >/dev/null 2>&1; then
 	    missing+=("$bin")
 	fi
@@ -193,6 +199,15 @@ provides_pkg () (
 )
 
 collect_system_info () {
+    # Check the efi mount first, so we can bail before wasting time on all these
+    # other checks if it's not there.
+    if [[ $update_efi ]]; then
+	declare -g efi_mount
+	efi_mount=$(findmnt --mountpoint /boot/efi --output SOURCE \
+	    --noheadings) ||
+	    exit_message "Can't find EFI mount.  No EFI  boot detected."
+    fi
+
     # Don't enable these module streams, even if they are enabled in the source
     # distro.
     declare -g -a module_excludes
@@ -359,16 +374,17 @@ collect_system_info () {
 }
 
 convert_info_dir=/root/convert
-unset convert_to_rocky reinstall_all_rpms verify_all_rpms
+unset convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi
 
 usage() {
   printf '%s\n' \
       "Usage: ${0##*/} [OPTIONS]" \
       '' \
       'Options:' \
-      '-h displays this help' \
-      '-r Converts to rocky' \
-      '-V Verifies switch' \
+      '-e Update EFI boot sector when done' \
+      '-h Display this help' \
+      '-r Convert to rocky' \
+      '-V Verify switch' \
       '   !! USE WITH CAUTION !!'
   exit 1
 } >&2
@@ -500,6 +516,14 @@ EOF
     dnf -y distro-sync || exit_message "Error during distro-sync."
 }
 
+# Called to update the EFI boot.
+fix_efi () (
+    grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
+    	exit_message "Error updating the grub config."
+    efibootmgr -c -d "$efi_mount" -L "Rocky Linux" -I /EFI/rocky/grubx64.efi ||
+	exit_message "Error updating uEFI firmware."
+)
+
 ## End actual work
 
 noopts=0
@@ -514,6 +538,9 @@ while getopts "hrVR" option; do
       ;;
     V)
       verify_all_rpms=true
+      ;;
+    e)
+      update_efi=true
       ;;
     *)
       printf '%s\n' "${errcolor}Invalid switch.$nocolor"
@@ -540,6 +567,10 @@ if [[ $verify_all_rpms && $convert_to_rocky ]]; then
   generate_rpm_info finish
   printf '%s\n' "${blue}You may review the following files:$nocolor"
   find /root/convert -type f -name "$HOSTNAME-rpms-*.log"
+fi
+
+if [[ $update_efi && $convert_to_rocky ]]; then
+    fix_efi
 fi
 
 printf '\n\n\n'
