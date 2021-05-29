@@ -57,6 +57,19 @@ os-release () (
     printf '%s\n' "${!1}"
 )
 
+# Check the version of a package against a supplied version number.  Note that
+# this uses sort -V to compare the versions which isn't perfect for rpm package
+# versions, but to do a proper comparison we would need to use rpmdev-vercmp in
+# the rpmdevtools package which we don't want to force-install.  sort -V should
+# be adequate for our needs here.
+pkg_ver() (
+    ver=$(rpm -q --qf '%{VERSION}\n' "$1") || return 2
+    if [[ $(sort -V <<<"$ver"$'\n'"$2" | head -1) != $2 ]]; then
+	return 1
+    fi
+    return 0
+)
+
 # All of the binaries used by this script are available in a EL8 minimal install
 # and are in /bin, so we should not encounter a system where the script doesn't
 # work unless it's severly broken.  This is just a simple check that will cause
@@ -79,11 +92,16 @@ bin_check() {
     fi
 
     local -a missing
-    for bin in rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir rm; do
+    for bin in rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir rm \
+	head; do
 	if ! type "$bin" >/dev/null 2>&1; then
 	    missing+=("$bin")
 	fi
     done
+
+    if ! pkg_ver dnf 4.2; then
+	exit_message 'dnf >= 4.2 is required for this script.  Please run "dnf update" first.'
+    fi
 
     if (( ${#missing[@]} )); then
 	exit_message "Commands not found: ${missing[@]}.  Possible bad PATH setting or corrupt installation."
