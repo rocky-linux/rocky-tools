@@ -9,7 +9,7 @@
 ## instability.
 
 # Path to logfile
-logfile=/var/log/centos2rocky.log
+logfile=/var/log/migrate2rocky.log
 
 # Send all output to the logfile as well as stdout.
 truncate -s0 "$logfile"
