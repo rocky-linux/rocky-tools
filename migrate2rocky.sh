@@ -16,9 +16,10 @@ truncate -s0 "$logfile"
 exec > >(tee -a "$logfile") 2> >(tee -a "$logfile" >&2)
 
 # List nocolor last here so that -x doesn't bork the display.
-errcolor=$(tput setaf 1)
-blue=$(tput setaf 4)
-nocolor=$(tput op)
+#errcolor=$(tput setaf 1)
+#blue=$(tput setaf 4)
+#nocolor=$(tput op)
+unset errcolor blue nocolor
 
 export LANG=en_US.UTF-8
 shopt -s nullglob
