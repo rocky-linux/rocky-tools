@@ -382,7 +382,6 @@ usage() {
       "Usage: ${0##*/} [OPTIONS]" \
       '' \
       'Options:' \
-      '-e Update EFI boot sector when done' \
       '-h Display this help' \
       '-r Convert to rocky' \
       '-V Verify switch' \
@@ -517,6 +516,21 @@ EOF
     dnf -y distro-sync || exit_message "Error during distro-sync."
 }
 
+# Check if this system is running on EFI
+# If yes, we'll need to run fix_efi() at the end of the conversion
+efi_check () {
+    # Check if we have /sys mounted and it is looking sane
+    if ! [[ -d /sys/class/block ]]; then
+	exit_message "/sys is not accessible."
+    fi
+    
+    # Now that we know /sys is reliable, use it to check if we are running on EFI or not
+    if [[ -d /sys/firmware/efi/ ]]; then
+	declare -g update_efi
+	update_efi=true
+    fi
+}
+
 # Called to update the EFI boot.
 fix_efi () (
     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
@@ -540,9 +554,6 @@ while getopts "hrVR" option; do
     V)
       verify_all_rpms=true
       ;;
-    e)
-      update_efi=true
-      ;;
     *)
       printf '%s\n' "${errcolor}Invalid switch.$nocolor"
       usage
@@ -553,6 +564,7 @@ if (( ! noopts )); then
     usage
 fi
 
+efi_check
 bin_check
 
 if [[ $verify_all_rpms ]]; then
