@@ -9,16 +9,17 @@
 ## instability.
 
 # Path to logfile
-logfile=/var/log/centos2rocky.log
+logfile=/var/log/migrate2rocky.log
 
 # Send all output to the logfile as well as stdout.
 truncate -s0 "$logfile"
 exec > >(tee -a "$logfile") 2> >(tee -a "$logfile" >&2)
 
 # List nocolor last here so that -x doesn't bork the display.
-errcolor=$(tput setaf 1)
-blue=$(tput setaf 4)
-nocolor=$(tput op)
+#errcolor=$(tput setaf 1)
+#blue=$(tput setaf 4)
+#nocolor=$(tput op)
+unset errcolor blue nocolor
 
 export LANG=en_US.UTF-8
 shopt -s nullglob
@@ -57,6 +58,19 @@ os-release () (
     printf '%s\n' "${!1}"
 )
 
+# Check the version of a package against a supplied version number.  Note that
+# this uses sort -V to compare the versions which isn't perfect for rpm package
+# versions, but to do a proper comparison we would need to use rpmdev-vercmp in
+# the rpmdevtools package which we don't want to force-install.  sort -V should
+# be adequate for our needs here.
+pkg_ver() (
+    ver=$(rpm -q --qf '%{VERSION}\n' "$1") || return 2
+    if [[ $(sort -V <<<"$ver"$'\n'"$2" | head -1) != $2 ]]; then
+	return 1
+    fi
+    return 0
+)
+
 # All of the binaries used by this script are available in a EL8 minimal install
 # and are in /bin, so we should not encounter a system where the script doesn't
 # work unless it's severly broken.  This is just a simple check that will cause
@@ -78,12 +92,23 @@ bin_check() {
 	exit_message "bash >= 4.0 is required for this script."
     fi
 
-    local -a missing
-    for bin in rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir rm; do
+    local -a missing bins
+    bins=(
+	rpm dnf awk column tee tput mkdir
+	cat arch sort uniq rmdir rm head
+    )
+    if [[ $update_efi ]]; then
+	bins+=(findmnt grub2-mkconfig efibootmgr)
+    fi
+    for bin in "${bins[@]}"; do
 	if ! type "$bin" >/dev/null 2>&1; then
 	    missing+=("$bin")
 	fi
     done
+
+    if ! pkg_ver dnf 4.2; then
+	exit_message 'dnf >= 4.2 is required for this script.  Please run "dnf update" first.'
+    fi
 
     if (( ${#missing[@]} )); then
 	exit_message "Commands not found: ${missing[@]}.  Possible bad PATH setting or corrupt installation."
@@ -175,6 +200,15 @@ provides_pkg () (
 )
 
 collect_system_info () {
+    # Check the efi mount first, so we can bail before wasting time on all these
+    # other checks if it's not there.
+    if [[ $update_efi ]]; then
+	declare -g efi_mount
+	efi_mount=$(findmnt --mountpoint /boot/efi --output SOURCE \
+	    --noheadings) ||
+	    exit_message "Can't find EFI mount.  No EFI  boot detected."
+    fi
+
     # Don't enable these module streams, even if they are enabled in the source
     # distro.
     declare -g -a module_excludes
@@ -341,16 +375,17 @@ collect_system_info () {
 }
 
 convert_info_dir=/root/convert
-unset convert_to_rocky reinstall_all_rpms verify_all_rpms
+unset convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi
 
 usage() {
   printf '%s\n' \
       "Usage: ${0##*/} [OPTIONS]" \
       '' \
       'Options:' \
-      '-h displays this help' \
-      '-r Converts to rocky' \
-      '-V Verifies switch' \
+      '-e Update EFI boot sector when done' \
+      '-h Display this help' \
+      '-r Convert to rocky' \
+      '-V Verify switch' \
       '   !! USE WITH CAUTION !!'
   exit 1
 } >&2
@@ -482,6 +517,14 @@ EOF
     dnf -y distro-sync || exit_message "Error during distro-sync."
 }
 
+# Called to update the EFI boot.
+fix_efi () (
+    grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
+    	exit_message "Error updating the grub config."
+    efibootmgr -c -d "$efi_mount" -L "Rocky Linux" -I /EFI/rocky/grubx64.efi ||
+	exit_message "Error updating uEFI firmware."
+)
+
 ## End actual work
 
 noopts=0
@@ -496,6 +539,9 @@ while getopts "hrVR" option; do
       ;;
     V)
       verify_all_rpms=true
+      ;;
+    e)
+      update_efi=true
       ;;
     *)
       printf '%s\n' "${errcolor}Invalid switch.$nocolor"
@@ -522,6 +568,10 @@ if [[ $verify_all_rpms && $convert_to_rocky ]]; then
   generate_rpm_info finish
   printf '%s\n' "${blue}You may review the following files:$nocolor"
   find /root/convert -type f -name "$HOSTNAME-rpms-*.log"
+fi
+
+if [[ $update_efi && $convert_to_rocky ]]; then
+    fix_efi
 fi
 
 printf '\n\n\n'
