@@ -521,7 +521,7 @@ EOF
 fix_efi () (
     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
     	exit_message "Error updating the grub config."
-    efibootmgr -c -d "$efi_mount" -L "Rocky Linux" -I /EFI/rocky/grubx64.efi ||
+    efibootmgr -c -d "$efi_mount" -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
 	exit_message "Error updating uEFI firmware."
 )
 
