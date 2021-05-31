@@ -4,6 +4,9 @@
 # By: Peter Ajamian <peter@pajamian.dhs.org>
 # Adapted from centos2rocky.sh by label <label@rockylinux.org>
 #
+# The latest version of this script can be found at:
+# https://github.com/rocky-linux/rocky-tools
+#
 
 ## Rocky is RC status. Using this script means you accept all risks of system
 ## instability.

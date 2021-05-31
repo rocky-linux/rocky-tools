@@ -19,6 +19,10 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 [!! USE WITH CAUTION !!]
 ```
 
+### Latest Version
+
+The latest version of this script can be found [here](https://github.com/rocky-linux/rocky-tools/).
+
 ### Debugging
 
 The `migrate2rocky` script pipes everything shown on `stdout` and `stderr` to
