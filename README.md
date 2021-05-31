@@ -28,6 +28,7 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 ...
 error: unpacking of archive failed on file /usr/share/redhat-release: cpio: File from package already exists as a directory in system
 error: rocky-release-8.3-13.el8.noarch: install failed
+...
 Error: Transaction failed
 ```
 
