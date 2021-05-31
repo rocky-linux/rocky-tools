@@ -98,7 +98,7 @@ bin_check() {
 	cat arch sort uniq rmdir rm head
     )
     if [[ $update_efi ]]; then
-	bins+=(findmnt grub2-mkconfig efibootmgr)
+	bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil)
     fi
     for bin in "${bins[@]}"; do
 	if ! type "$bin" >/dev/null 2>&1; then
@@ -207,6 +207,13 @@ collect_system_info () {
 	efi_mount=$(findmnt --mountpoint /boot/efi --output SOURCE \
 	    --noheadings) ||
 	    exit_message "Can't find EFI mount.  No EFI  boot detected."
+    fi
+
+    # check if EFI secure boot is enabled
+    if [[ $update_efi ]]; then
+	if mokutil --sb-state 2>&1 | grep -q "SecureBoot enabled"; then
+	    exit_message "EFI Secure Boot is enabled but Rocky Linux doesn't provide a signed shim yet. Disable EFI Secure Boot and reboot."
+	fi
     fi
 
     # Don't enable these module streams, even if they are enabled in the source
