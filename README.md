@@ -11,7 +11,7 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 ### Usage
 
 ```bash
-./centos2rocky.sh -h
+./migrate2rocky.sh -h
 ├── -h   # --> Display this help
 ├── -r   # --> Convert to Rocky
 └── -V   # --> Verify switch
