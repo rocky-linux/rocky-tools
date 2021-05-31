@@ -27,7 +27,7 @@ The `migrate2rocky` script pipes everything shown on `stdout` and `stderr` to
 If you run in to issues executing this script, please submit an issue
 [here](https://github.com/rocky-linux/rocky-tools/issues).
 
-Make sure to [include the output log](https://pastebin.com/), and remove any
-sensitive information. (if any)
+Make sure to include the output log, and remove any sensitive information. (if
+any)
 
 Feel free to create a pull request if you think you've got the fix.
