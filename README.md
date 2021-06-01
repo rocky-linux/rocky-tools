@@ -44,6 +44,10 @@ on reboot but the other ones will remain until they are removed or replaced by
 newer kernels.  If you want you can manually remove the old kernels after reboot
 with dnf or rpm.
 
+### Latest Version
+
+The latest version of this script can be found [here](https://github.com/rocky-linux/rocky-tools/).
+
 ### Debugging
 
 The `migrate2rocky` script pipes everything shown on `stdout` and `stderr` to
