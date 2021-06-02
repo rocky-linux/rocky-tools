@@ -51,9 +51,15 @@ shopt -s nullglob
 SUPPORTED_MAJOR="8"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
 ARCH=$(arch)
+
+gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-rockyofficial"
+gpg_key_sha512="88fe66cf0a68648c2371120d56eb509835266d9efdf7c8b9ac8fc101bdf1f0e0197030d3ea65f4b5be89dc9d1ef08581adb068815c88d7b1dc40aa1c32990f6a"
+
+# all repos must be signed with the same key given in $gpg_key_url
+declare -A repo_urls
 repo_urls=(
-    "rockybaseos,https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
-    "rockyappstream,https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
+    [rockybaseos]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
+    [rockyappstream]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
 )
 
 unset CDPATH
@@ -120,6 +126,7 @@ bin_check() {
     bins=(
 	rpm dnf awk column tee tput mkdir
 	cat arch sort uniq rmdir rm head
+	curl sha512sum mktemp
     )
     if [[ $update_efi ]]; then
 	bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil)
@@ -429,15 +436,27 @@ generate_rpm_info() {
 }
 
 package_swaps() {
+    # prepare repo parameters
+    local -a dnfparameters
+    for repo in "${!repo_urls[@]}"; do
+	dnfparameters+=( "--repofrompath=${repo},${repo_urls[${repo}]}" )
+	dnfparameters+=( "--setopt=${repo}.gpgcheck=1" )
+	dnfparameters+=( "--setopt=${repo}.gpgkey=file://${gpg_key_file}" )
+    done
+
     # Use dnf shell to swap the system packages out.
-    dnf -y shell --nogpg --disablerepo=\* --noautoremove \
+    dnf -y shell --disablerepo=\* --noautoremove \
 	--setopt=protected_packages= --setopt=keepcache=True \
-	"${repo_urls[@]/#/--repofrompath=}" <<EOF
+	"${dnfparameters[@]}" \
+	<<EOF
 	remove ${installed_pkg_map[@]} ${addl_pkg_removes[@]}
 	install ${!installed_pkg_map[@]}
 	run
 	exit
 EOF
+
+    # rocky-repos and rocky-gpg-keys are now installed, so we don't need the key file anymore
+    rm -rf "$gpg_tmp_dir"
 
     # We need to check to make sure that all of the original system packages
     # have been removed and all of the new ones have been added. If a package
@@ -570,6 +589,32 @@ fix_efi () (
 	exit_message "Error updating uEFI firmware."
 )
 
+# Download and verify the Rocky Linux package signing key
+establish_gpg_trust () {
+    # create temp dir and verify it is really created and empty, so we are sure deleting it afterwards won't cause any harm
+    declare -g gpg_tmp_dir
+    if ! gpg_tmp_dir=$(mktemp -d) || [[ ! -d "$gpg_tmp_dir" ]]; then
+	exit_message "Error creating temp dir"
+    fi
+    # failglob makes pathname expansion fail if empty, dotglob adds files starting with . to pathname expansion
+    if ( shopt -s failglob dotglob; : "$gpg_tmp_dir"/* ) 2>/dev/null ; then
+	exit_message "Temp dir not empty"
+    fi
+
+    # extract the filename from the url, use the temp dir just created
+    declare -g gpg_key_file="$gpg_tmp_dir/${gpg_key_url##*/}"
+
+    if ! curl -o "$gpg_key_file" --silent --show-error "$gpg_key_url"; then
+	rm -rf "$gpg_tmp_dir"
+	exit_message "Error downloading the Rocky Linux signing key."
+    fi
+
+    if ! sha512sum --quiet -c <<<"$gpg_key_sha512 $gpg_key_file"; then
+	rm -rf "$gpg_tmp_dir"
+	exit_message "Error validating the signing key."
+    fi
+}
+
 ## End actual work
 
 noopts=0
@@ -604,6 +649,7 @@ fi
 
 if [[ $convert_to_rocky ]]; then
     collect_system_info
+    establish_gpg_trust
     package_swaps
 fi
 
