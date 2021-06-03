@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 #
 # mirrorsync - Synchronize a Rocky mirror
 # By: Dennis Koerner <koerner@netzwerge.de>
