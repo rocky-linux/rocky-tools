@@ -3,6 +3,10 @@ Rocky Mirror Scripts
 
 Scripts and snippets for mirror admins.
 
+## example.crontab
+
+A few suggestions for setting up a crontab for syncing.
+
 ## mirrorsync.sh
 
 Example script for keeping a public or private mirror in sync.
