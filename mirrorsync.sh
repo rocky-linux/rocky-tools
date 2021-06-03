@@ -47,12 +47,12 @@ SRC="msync.rockylinux.org::rocky/mirror/pub/rocky/"
 # Your local path. Change to whatever fits your system.
 # MIRRORMODULE is also used in syslog output.
 MIRRORMODULE="rocky-linux"
-DST="/mnt/mirrorserver/${MIRRORMODULE}/"
+DST="/mnt/mirrorserver/${MIRRORMODULE}"
 
-FILELISTFILE="/fullfiletimelist-rocky"
+FILELISTFILE="fullfiletimelist-rocky"
 LOCKFILE=$0.lockfile
 
-CHECKRESULT=`${RSYNC} --no-motd --dry-run --out-format='%n' ${SRC}${FILELISTFILE} ${DST}${FILELISTFILE}`
+CHECKRESULT=`${RSYNC} --no-motd --dry-run --out-format='%n' ${SRC}${FILELISTFILE} ${DST}/${FILELISTFILE}`
 if [ -z $CHECKRESULT ]; then
 	echo "${FILELISTFILE} unchanged. Not updating at " `date` >> $0.log 2>&1
 	logger -t rsync "Not updating ${MIRRORMODULE}: ${FILELISTFILE} unchanged."
@@ -68,7 +68,7 @@ else
 	echo "Started update at" `date` >> $0.log 2>&1
 	logger -t rsync "Updating ${MIRRORMODULE}"
 		
-	${RSYNC} ${OPTS} ${SRC} ${DST} >> $0.log 2>&1
+	${RSYNC} ${OPTS} ${SRC} ${DST}/ >> $0.log 2>&1
 	logger -t rsync "Finished updating ${MIRRORMODULE}"  
 	echo "End: "`date` >> $0.log 2>&1
 	rm $LOCKFILE
