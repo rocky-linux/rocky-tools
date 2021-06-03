@@ -1,0 +1,9 @@
+#This will synchronize your mirror at 0:50, 4:50, 8:50, 12:50, 16:50, 20:50
+50 */6  * * * /path/to/your/rocky-rsync-mirror.sh > /dev/null 2>&1
+
+#This will synchronize your mirror at 2:25, 6:25, 10:25, 14:25, 18:25, 22:25
+25 2,6,10,14,18,22 * * * /path/to/your/rocky-rsync-mirror.sh > /dev/null 2>&1
+
+#This will synchronize your mirror every hour at 15 minutes past the hour.
+#Only use if you are using our example script
+15 * * * * /path/to/your/rocky-rsync-mirror.sh > /dev/null 2>&1
