@@ -52,24 +52,24 @@ DST="/mnt/mirrorserver/${MIRRORMODULE}"
 FILELISTFILE="fullfiletimelist-rocky"
 LOCKFILE=$0.lockfile
 
-CHECKRESULT=`${RSYNC} --no-motd --dry-run --out-format='%n' ${SRC}${FILELISTFILE} ${DST}/${FILELISTFILE}`
+CHECKRESULT=$(${RSYNC} --no-motd --dry-run --out-format='%n' ${SRC}${FILELISTFILE} ${DST}/${FILELISTFILE})
 if [ -z $CHECKRESULT ]; then
-	echo "${FILELISTFILE} unchanged. Not updating at " `date` >> $0.log 2>&1
+	echo "${FILELISTFILE} unchanged. Not updating at" $(date) >> $0.log 2>&1
 	logger -t rsync "Not updating ${MIRRORMODULE}: ${FILELISTFILE} unchanged."
 	exit 1
 fi
 
 
 if [ -e $LOCKFILE ]; then
-	echo "Update already in progress at" `date` >> $0.log 2>&1
+	echo "Update already in progress at" $(date) >> $0.log 2>&1
 	logger -t rsync "Not updating ${MIRRORMODULE}: already in progress."
 else
 	touch $LOCKFILE
-	echo "Started update at" `date` >> $0.log 2>&1
+	echo "Started update at" $(date) >> $0.log 2>&1
 	logger -t rsync "Updating ${MIRRORMODULE}"
 		
 	${RSYNC} ${OPTS} ${SRC} ${DST}/ >> $0.log 2>&1
 	logger -t rsync "Finished updating ${MIRRORMODULE}"  
-	echo "End: "`date` >> $0.log 2>&1
+	echo "End:" $(date) >> $0.log 2>&1
 	rm $LOCKFILE
 fi
