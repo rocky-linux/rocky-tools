@@ -34,7 +34,7 @@
 
 rsync="/usr/bin/rsync"
 # You can change v to q if you do not want detailed logging
-opts=(-vrlptDSH --exclude=*.~tmp~ --delete-delay --delay-updates)
+opts=(-vrlptDSH --exclude="*.~tmp~" --delete-delay --delay-updates)
 
 # Please use a mirror next to you for initial sync
 # or if you are hosting a private rather than a pulic mirror.
@@ -82,3 +82,4 @@ ${rsync} "${opts[@]}" "${src}/" "${dst}/" >> "$logfile" 2>&1
 logger -t rsync "Finished updating ${mirrormodule}"  
 printf "End: %(%c)T\n" -1 >> "$logfile" 2>&1
 rm -f $lockfile
+
