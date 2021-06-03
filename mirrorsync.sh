@@ -32,9 +32,9 @@
 #
 
 
-RSYNC="/usr/bin/rsync"
+rsync="/usr/bin/rsync"
 # You can change v to q if you do not want detailed logging
-OPTS="-vrlptDSH --exclude=*.~tmp~ --delete-delay --delay-updates"
+opts=(-vrlptDSH --exclude=*.~tmp~ --delete-delay --delay-updates)
 
 # Please use a mirror next to you for initial sync
 # or if you are hosting a private rather than a pulic mirror.
@@ -42,34 +42,35 @@ OPTS="-vrlptDSH --exclude=*.~tmp~ --delete-delay --delay-updates"
 # Also we might restrict access to the master in the future.
 # A complete list of mirrors can be found at
 # https://mirrors.rockylinux.org/mirrormanager/mirrors/Rocky
-SRC="msync.rockylinux.org::rocky/mirror/pub/rocky/"
+src="msync.rockylinux.org::rocky/mirror/pub/rocky"
 
 # Your local path. Change to whatever fits your system.
-# MIRRORMODULE is also used in syslog output.
-MIRRORMODULE="rocky-linux"
-DST="/mnt/mirrorserver/${MIRRORMODULE}"
+# $mirrormodule is also used in syslog output.
+mirrormodule="rocky-linux"
+dst="/mnt/mirrorserver/${mirrormodule}"
 
-FILELISTFILE="fullfiletimelist-rocky"
-LOCKFILE=$0.lockfile
+filelistfile="fullfiletimelist-rocky"
+lockfile="$0.lockfile"
+logfile="$0.log"
 
-CHECKRESULT=$(${RSYNC} --no-motd --dry-run --out-format='%n' ${SRC}${FILELISTFILE} ${DST}/${FILELISTFILE})
-if [ -z $CHECKRESULT ]; then
-	echo "${FILELISTFILE} unchanged. Not updating at" $(date) >> $0.log 2>&1
-	logger -t rsync "Not updating ${MIRRORMODULE}: ${FILELISTFILE} unchanged."
+checkresult=$(${rsync} --no-motd --dry-run --out-format="%n" "${src}/${filelistfile}" "${dst}/${filelistfile}")
+if [[ -z "$checkresult" ]]; then
+	printf "%s unchanged. Not updating at %(%c)T\n" "$filelistfile" -1 >> "$logfile" 2>&1
+	logger -t rsync "Not updating ${mirrormodule}: ${filelistfile} unchanged."
 	exit 1
 fi
 
 
-if [ -e $LOCKFILE ]; then
-	echo "Update already in progress at" $(date) >> $0.log 2>&1
-	logger -t rsync "Not updating ${MIRRORMODULE}: already in progress."
+if [[ -e "$lockfile" ]]; then
+	printf "Update already in progress at %(%c)T\n" -1 >> "$logfile" 2>&1
+	logger -t rsync "Not updating ${mirrormodule}: already in progress."
 else
-	touch $LOCKFILE
-	echo "Started update at" $(date) >> $0.log 2>&1
-	logger -t rsync "Updating ${MIRRORMODULE}"
+	touch $lockfile
+	printf "Started update at %(%c)T\n" -1 >> "$logfile" 2>&1
+	logger -t rsync "Updating ${mirrormodule}"
 		
-	${RSYNC} ${OPTS} ${SRC} ${DST}/ >> $0.log 2>&1
-	logger -t rsync "Finished updating ${MIRRORMODULE}"  
-	echo "End:" $(date) >> $0.log 2>&1
-	rm $LOCKFILE
+	${rsync} "${opts[@]}" "${src}/" "${dst}/" >> "$logfile" 2>&1
+	logger -t rsync "Finished updating ${mirrormodule}"  
+	printf "End: %(%c)T\n" -1 >> "$logfile" 2>&1
+	rm -f $lockfile
 fi
