@@ -63,7 +63,7 @@ fi
 
 # Check for existing lockfile to avoid multiple simultaneously running syncs
 # If lockfile exists but process is dead continue anyway
-if [[ -e "$lockfile" ]] && ! kill -0 "$(< "$lockfile")"; then
+if [[ -e "$lockfile" ]] && ! kill -0 "$(< "$lockfile")" 2>/dev/null; then
 	printf "Warning: lockfile exists but process dead, continuing.\n" >> "$logfile" 2>&1
 	logger -t rsync "Warning: lockfile exists but process dead, continuing with updating ${mirrormodule}."
 	rm -f "$lockfile"
