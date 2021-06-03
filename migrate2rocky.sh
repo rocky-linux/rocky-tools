@@ -43,7 +43,9 @@ exec > >(tee -a "$logfile") 2> >(tee -a "$logfile" >&2)
 #errcolor=$(tput setaf 1)
 #blue=$(tput setaf 4)
 #nocolor=$(tput op)
-unset errcolor blue nocolor
+errcolor=
+blue=
+nocolor=
 
 export LANG=en_US.UTF-8
 shopt -s nullglob
@@ -95,7 +97,7 @@ os-release () (
 # be adequate for our needs here.
 pkg_ver() (
     ver=$(rpm -q --qf '%{VERSION}\n' "$1") || return 2
-    if [[ $(sort -V <<<"$ver"$'\n'"$2" | head -1) != $2 ]]; then
+    if [[ $(sort -V <<<"$ver"$'\n'"$2" | head -1) != "$2" ]]; then
 	return 1
     fi
     return 0
@@ -112,7 +114,7 @@ bin_check() {
     fi
 
     # Check the platform.
-    if [[ $(os-release PLATFORM_ID) != $SUPPORTED_PLATFORM ]]; then
+    if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
 	exit_message "This script must be run on an EL8 distribution.  Migration from other distributions is not supported."
     fi
 
@@ -142,7 +144,7 @@ bin_check() {
     fi
 
     if (( ${#missing[@]} )); then
-	exit_message "Commands not found: ${missing[@]}.  Possible bad PATH setting or corrupt installation."
+	exit_message "Commands not found: ${missing[*]}.  Possible bad PATH setting or corrupt installation."
     fi
 }
 
@@ -150,7 +152,8 @@ bin_check() {
 # info for the resulting package.  Note that we explicitly disable the epel repo
 # as a special-case below to avoid having the extras repository map to epel.
 repoquery () {
-    local name val prev result=$(
+    local name val prev result
+    result=$(
 	dnf -q --setopt=epel.excludepkgs=epel-release repoquery -i "$1" ||
 	    exit_message "Failed to fetch info for package $1."
     )
@@ -330,13 +333,13 @@ collect_system_info () {
     for pkg in "${!provides_pkg_map[@]}"; do
 	printf '.'
 	prov=${provides_pkg_map[$pkg]}
-	pkg_map[$pkg]=$(provides_pkg $prov) ||
+	pkg_map[$pkg]=$(provides_pkg "$prov") ||
 	    exit_message "Can't get package that provides $prov."
     done
     for prov in "${addl_provide_removes[@]}"; do
 	printf '.'
 	local pkg;
-	pkg=$(provides_pkg $prov) || continue
+	pkg=$(provides_pkg "$prov") || continue
 	addl_pkg_removes+=("$pkg")
     done
 
@@ -554,13 +557,13 @@ EOF
     if (( ${#enabled_modules[@]} )); then
 	printf '%s\n' "${blue}Enabling modules$nocolor" ''
 	dnf -y module enable "${enabled_modules[@]}" ||
-    	    exit_message "Can't enable modules ${enabled_modules[@]}"
+    	    exit_message "Can't enable modules ${enabled_modules[*]}"
     fi
 
     # Make sure that excluded repos are disabled.
     printf '%s\n' "${blue}Disabling excluded modules$nocolor" ''
     dnf -y module disable "${module_excludes[@]}" ||
-    	exit_message "Can't disable modules ${module_excludes[@]}"
+    	exit_message "Can't disable modules ${module_excludes[*]}"
 
     printf '%s\n' '' "${blue}Syncing packages$nocolor" ''
     dnf -y distro-sync || exit_message "Error during distro-sync."
@@ -665,7 +668,7 @@ fi
 
 printf '\n\n\n'
 if [[ $convert_to_rocky ]]; then
-    cat /etc/issue | awk 'NR<=15'
+    awk 'NR<=15' < /etc/issue
     printf '%s\n' "$blue" "Done, please reboot your system.$nocolor"
 fi
 logmessage
