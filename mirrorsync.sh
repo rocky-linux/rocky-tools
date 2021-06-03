@@ -80,4 +80,4 @@ logger -t rsync "Updating ${mirrormodule}"
 rsync "${opts[@]}" "${src}/" "${dst}/" >> "$logfile" 2>&1
 logger -t rsync "Finished updating ${mirrormodule}"  
 printf "End: %(%c)T\n" -1 >> "$logfile" 2>&1
-rm -f $lockfile
+rm -f "$lockfile"
