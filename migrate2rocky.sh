@@ -679,6 +679,7 @@ if (( ! noopts )); then
     usage
 fi
 
+pre_check
 efi_check
 bin_check
 
