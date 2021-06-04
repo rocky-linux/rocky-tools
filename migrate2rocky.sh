@@ -228,9 +228,34 @@ provides_pkg () (
     provides=$(dnf -q provides "$1" | awk '{print $1; nextfile}') ||
 	return 1
     set +o pipefail
-    pkg=$(dnf -q repoquery --queryformat '%{NAME}' "$provides") ||
+    pkg=$(rpm -q --queryformat '%{NAME}\n' "$provides") ||
+    	pkg=$(dnf -q repoquery --queryformat '%{NAME}\n' "$provides") ||
     	exit_message "Can't get package name for $provides."
     printf '%s\n' "$pkg"
+)
+
+# If you pass an empty arg as one of the package specs to rpm it will match
+# every package on the system.  This funtion simply strips out any empty args
+# and passes the rest to rpm to avoid this side-effect.
+saferpm () (
+    args=()
+    for a in "$@"; do
+	if [[ $a ]]; then
+	    args+=("$a")
+	fi
+    done
+    rpm "${args[@]}"
+)
+
+# And a similar function for dnf
+safednf () (
+    args=()
+    for a in "$@"; do
+	if [[ $a ]]; then
+	    args+=("$a")
+	fi
+    done
+    dnf "${args[@]}"
 )
 
 collect_system_info () {
@@ -285,8 +310,8 @@ collect_system_info () {
     done
 
     printf '%s\n' '' '' "Found the following repositories which map from $PRETTY_NAME to Rocky Linux 8:"
-    column -t -N "$PRETTY_NAME,Rocky Linux 8" < <(for r in "${!repo_map[@]}"; do
-	printf '%s %s\n' "${repo_map[$r]}" "$r"
+    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(for r in "${!repo_map[@]}"; do
+	printf '%s\t%s\n' "${repo_map[$r]}" "$r"
 	done)
 
     printf '\n%s' "${blue}Getting system package names for $PRETTY_NAME$nocolor."
@@ -344,26 +369,27 @@ collect_system_info () {
     done
 
     printf '%s\n' '' '' "Found the following system packages which map from $PRETTY_NAME to Rocky Linux 8:"
-    column -t -N "$PRETTY_NAME,Rocky Linux 8" < <(for p in "${!pkg_map[@]}"; do
-	printf '%s %s\n' "${pkg_map[$p]}" "$p"
+    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(for p in "${!pkg_map[@]}"; do
+	printf '%s\t%s\n' "${pkg_map[$p]}" "$p"
 	done)
 
     printf '%s\n' '' "${blue}Getting list of installed system packages$nocolor."
-    readarray -t installed_packages < <(rpm -qa --queryformat="%{NAME}\n" "${pkg_map[@]}")
+
+    readarray -t installed_packages < <(saferpm -qa --queryformat="%{NAME}\n" "${pkg_map[@]}")
     declare -g -A installed_pkg_check installed_pkg_map
     for p in "${installed_packages[@]}"; do
 	installed_pkg_check[$p]=1
     done
     for p in "${!pkg_map[@]}"; do
-	if [[ ${installed_pkg_check[${pkg_map[$p]}]} ]]; then
+	if [[ ${pkg_map[$p]} && ${installed_pkg_check[${pkg_map[$p]}]} ]]; then
 	    installed_pkg_map[$p]=${pkg_map[$p]}
 	fi
     done;
 
     printf '%s\n' '' "We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 equivalents"
-    column -t -N "Packages to be Removed,Packages to be Installed" < <(
+    column -t -s $'\t' -N "Packages to be Removed,Packages to be Installed" < <(
 	for p in "${!installed_pkg_map[@]}"; do
-	    printf '%s %s\n' "${installed_pkg_map[$p]}" "$p"
+	    printf '%s\t%s\n' "${installed_pkg_map[$p]}" "$p"
 	done
     )
 
@@ -383,7 +409,7 @@ collect_system_info () {
     # Get a list of system enabled modules.
     readarray -t enabled_modules < <(
 	set -e -o pipefail
-	dnf -q "${repo_map[@]/#/--repo=}" module list --enabled |
+	safednf -q "${repo_map[@]/#/--repo=}" module list --enabled |
 	awk '
 	    $1 == "@modulefailsafe", /^$/ {next}
 	    $1 == "Name", /^$/ {if ($1!="Name" && !/^$/) print $1":"$2}
@@ -448,7 +474,7 @@ package_swaps() {
     done
 
     # Use dnf shell to swap the system packages out.
-    dnf -y shell --disablerepo=\* --noautoremove \
+    safednf -y shell --disablerepo=\* --noautoremove \
 	--setopt=protected_packages= --setopt=keepcache=True \
 	"${dnfparameters[@]}" \
 	<<EOF
@@ -470,7 +496,7 @@ EOF
     # linux package will be removed and then installed again.
     local -a check_removed check_installed
     readarray -t check_removed < <(
-	rpm -qa --qf '%{NAME}\n' "${installed_pkg_map[@]}" \
+	saferpm -qa --qf '%{NAME}\n' "${installed_pkg_map[@]}" \
 	    "${addl_pkg_removes[@]}" | sort -u
     )
 
@@ -478,9 +504,13 @@ EOF
 	printf '%s\n' '' "${blue}Packages found on system that should still be removed.  Forcibly removing them with rpm:$nocolor"
 	# Removed packages still found on the system.  Forcibly remove them.
 	for pkg in "${check_removed[@]}"; do
+	    # Extra safety measure, skip if empty string
+	    if [[ -z $pkg ]]; then
+		continue
+	    fi
 	    printf '%s\n' "$pkg"
-	    rpm -e --allmatches --nodeps "${check_removed[@]}" ||
-	    rpm -e --allmatches --nodeps --noscripts --notriggers "$pkg"
+	    saferpm -e --allmatches --nodeps "$pkg" ||
+	    saferpm -e --allmatches --nodeps --noscripts --notriggers "$pkg"
 	done
     fi
 
@@ -488,7 +518,7 @@ EOF
     readarray -t check_installed < <(
 	{
 	    printf '%s\n' "${!installed_pkg_map[@]}" | sort -u
-	    rpm -qa --qf '%{NAME}\n' "${!installed_pkg_map[@]}" | sort -u
+	    saferpm -qa --qf '%{NAME}\n' "${!installed_pkg_map[@]}" | sort -u
 	} | sort | uniq -u
     )
     if (( ${#check_installed[@]} )); then
@@ -537,7 +567,7 @@ EOF
     printf '%s\n' '' "${blue}Removing dnf cache$nocolor"
     rm -rf /var/cache/{yum,dnf}
     printf '%s\n' "${blue}Ensuring repos are enabled before the package swap$nocolor"
-    dnf -y config-manager --set-enabled "${!repo_map[@]}" || {
+    safednf -y config-manager --set-enabled "${!repo_map[@]}" || {
       printf '%s\n' 'Repo name missing?'
       exit 25
     }
@@ -545,24 +575,24 @@ EOF
     if (( ${#managed_repos[@]} )); then
 	# Filter the managed repos for ones still in the system.
 	readarray -t managed_repos < <(
-	    dnf -q repolist "${managed_repos[@]}" | awk '$1!="repo" {print $1}'
+	    safednf -q repolist "${managed_repos[@]}" | awk '$1!="repo" {print $1}'
 	)
 
 	if (( ${#managed_repos[@]} )); then
 	    printf '%s\n' '' "${blue}Disabling subscription managed repos$nocolor."
-	    dnf -y config-manager --disable "${managed_repos[@]}"
+	    safednf -y config-manager --disable "${managed_repos[@]}"
 	fi
     fi
 
     if (( ${#enabled_modules[@]} )); then
 	printf '%s\n' "${blue}Enabling modules$nocolor" ''
-	dnf -y module enable "${enabled_modules[@]}" ||
+	safednf -y module enable "${enabled_modules[@]}" ||
     	    exit_message "Can't enable modules ${enabled_modules[*]}"
     fi
 
     # Make sure that excluded repos are disabled.
     printf '%s\n' "${blue}Disabling excluded modules$nocolor" ''
-    dnf -y module disable "${module_excludes[@]}" ||
+    safednf -y module disable "${module_excludes[@]}" ||
     	exit_message "Can't disable modules ${module_excludes[*]}"
 
     printf '%s\n' '' "${blue}Syncing packages$nocolor" ''
