@@ -23,8 +23,8 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 #### Katello clashes
 
-Katello installs it's own repositories via subscription-manager that are meant
-to replace the ones from CentOS, but it does not remove, or even disable, the
+Katello installs its own repositories via subscription-manager that are meant to
+replace the ones from CentOS, but it does not remove, or even disable, the
 corresponding CentOS repositories.  This would cause issues to a normal running
 system, but it is especially problematic for migrate2rocky as it means that
 migrate2rocky cannot properly determine which repositories to remove and
