@@ -103,6 +103,12 @@ pkg_ver() (
     return 0
 )
 
+pre_check () {
+    if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
+	exit_message "Migration from Katello-modified systems is not supported by migrate2rocky."
+    fi
+}
+
 # All of the binaries used by this script are available in a EL8 minimal install
 # and are in /bin, so we should not encounter a system where the script doesn't
 # work unless it's severly broken.  This is just a simple check that will cause
@@ -673,6 +679,7 @@ if (( ! noopts )); then
     usage
 fi
 
+pre_check
 efi_check
 bin_check
 
