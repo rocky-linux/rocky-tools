@@ -39,15 +39,15 @@ if [ -n "$POSIXLY_CORRECT" ] || [ -z "$BASH_VERSION" ]; then
     exit 1
 fi
 
-# Make sure we're root.
-if (( EUID != 0 )); then
-    printf '%s\n' "You must run this script as root.  Either use sudo or 'su -c ${0}'" >&2
-    exit 1
-fi
-
 # We need bash version >= 4 for associative arrays.
 if (( BASH_VERSINFO < 4 )); then
     printf '%s\n' "bash >= 4.0 is required for this script." >&2
+    exit 1
+fi
+
+# Make sure we're root.
+if (( EUID != 0 )); then
+    printf '%s\n' "You must run this script as root.  Either use sudo or 'su -c ${0}'" >&2
     exit 1
 fi
 
