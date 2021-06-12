@@ -32,6 +32,16 @@
 ## Rocky is RC status. Using this script means you accept all risks of system
 ## instability.
 
+# This check needs to be right at the top because we start with bash-isms right
+# away in this script.
+# We need bash version >= 4 for associative arrays.  This will also verify
+# that we're actually running bash.
+if [ -n "$POSIXLY_CORRECT" ] || [ -z "$BASH_VERSION" ]; then
+    printf '%s\n' "bash >= 4.0 is required for this script." >&2
+    exit 1
+fi
+
+
 # Path to logfile
 logfile=/var/log/migrate2rocky.log
 
@@ -119,15 +129,15 @@ bin_check() {
 	exit_message "You must run this script as root.  Either use sudo or 'su -c ${0}'"
     fi
 
-    # Check the platform.
-    if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
-	exit_message "This script must be run on an EL8 distribution.  Migration from other distributions is not supported."
-    fi
-
     # We need bash version >= 4 for associative arrays.  This will also verify
     # that we're actually running bash.
     if (( BASH_VERSINFO < 4 )); then
 	exit_message "bash >= 4.0 is required for this script."
+    fi
+
+    # Check the platform.
+    if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
+	exit_message "This script must be run on an EL8 distribution.  Migration from other distributions is not supported."
     fi
 
     local -a missing bins
