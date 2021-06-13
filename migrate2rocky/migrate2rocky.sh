@@ -714,7 +714,6 @@ fi
 
 printf '\n\n\n'
 if [[ $convert_to_rocky ]]; then
-    awk 'NR<=15' < /etc/issue
     printf '%s\n' "$blue" "Done, please reboot your system.$nocolor"
 fi
 logmessage
