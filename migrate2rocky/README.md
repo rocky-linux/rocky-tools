@@ -16,15 +16,20 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 ### Known Issues
 
-#### Katello clashes
+#### Custom replacements of default repositories
 
-Katello installs its own repositories via subscription-manager that are meant to
-replace the ones from CentOS, but it does not remove, or even disable, the
-corresponding CentOS repositories.  This would cause issues to a normal running
-system, but it is especially problematic for migrate2rocky as it means that
-migrate2rocky cannot properly determine which repositories to remove and
-attempting to run migrate2rocky on a katello will likely result in a corrupted
-system.
+This script expects the **original repository configuration being present, as well
+as enabled** (i.e. for CentOS the `baseos` repo configuration in the
+`/etc/yum.repos.d/CentOS-Linux-BaseOS.repo` file has to be present and enabled).
+Also make sure that there are **no other repositories** which could interfere with the
+original configuration.
+
+As long as the original repository configuration is disabled and a new alternative
+repository gets added in a different file, or not the only repo that provides the
+base packages, the migration result will end in a corrupted system.
+
+This especially happens on systems configured with a centralized package management
+like Katello (RedHat Satellite 6) or Uyuni (RedHat Satellite 5, SUSE Manager).
 
 #### RHEL migrations show error messages during conversion
 
