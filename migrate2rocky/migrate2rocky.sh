@@ -114,6 +114,9 @@ ARCH=$(arch)
 gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-rockyofficial"
 gpg_key_sha512="88fe66cf0a68648c2371120d56eb509835266d9efdf7c8b9ac8fc101bdf1f0e0197030d3ea65f4b5be89dc9d1ef08581adb068815c88d7b1dc40aa1c32990f6a"
 
+sm_ca_dir=/etc/rhsm/ca
+unset tmp_sm_ca_dir
+
 # all repos must be signed with the same key given in $gpg_key_url
 declare -A repo_urls
 repo_urls=(
@@ -164,6 +167,25 @@ pkg_ver() (
     fi
     return 0
 )
+
+# Set up a temporary directory.
+pre_setup () {
+    if ! tmp_dir=$(mktemp -d) || [[ ! -d "$tmp_dir" ]]; then
+	exit_message "Error creating temp dir"
+    fi
+    # failglob makes pathname expansion fail if empty, dotglob adds files
+    # starting with . to pathname expansion
+    if ( shopt -s failglob dotglob; : "$tmp_dir"/* ) 2>/dev/null ; then
+	exit_message "Temp dir not empty"
+    fi
+}
+
+# Cleanup function gets rid of the temporary directory.
+exit_clean () {
+    if [[ -d "$tmp_dir" ]]; then
+	rm -rf "$tmp_dir"
+    fi
+}
 
 pre_check () {
     if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
@@ -524,6 +546,15 @@ generate_rpm_info() {
 }
 
 package_swaps() {
+    # Save off any subscription-manger keys, just in case.
+    if ( shopt -s failglob dotglob; : "$sm_ca_dir"/* ) 2>/dev/null ; then
+	tmp_sm_ca_dir=$tmp_dir/sm-certs
+	mkdir "$tmp_sm_ca_dir" ||
+	    exit_message "Could not create directory: $tmp_sm_ca_dir"
+	cp -f -dR --preserve=all "$sm_ca_dir"/* "$tmp_sm_ca_dir/" ||
+	    exit_message "Could not copy certs to $tmp_sm_ca_dir"
+    fi
+
     # prepare repo parameters
     local -a dnfparameters
     for repo in "${!repo_urls[@]}"; do
@@ -660,6 +691,52 @@ EOF
 
     infomsg $'\nSyncing packages\n\n'
     dnf -y distro-sync || exit_message "Error during distro-sync."
+
+    if rpm --quiet -q subscription-manager; then
+	infomsg $'Subscription Manager found on system.\n'
+	cat <<EOF
+If you're converting from a subscription-managed distribution such as RHEL then
+you may no longer need subscription-manager.  While it won't hurt anything to
+have it on your system you may be able to safely remove it with
+"dnf remove subscription-manager".  Take care that it doesn't remove something
+that you want to keep.
+
+The subscription-manager dnf plugin may be enabled for the benefit of
+Subscription Management. If no longer desired, you can use
+"subscription-manager config --rhsm.auto_enable_yum_plugins=0" to block this
+behavior.
+
+EOF
+    fi
+    if [[ $tmp_sm_ca_dir ]]; then
+	# Check to see if there's Subscription Manager certs which have been
+	# removed
+	local -a removed_certs
+	readarray -t removed_certs < <((
+	    shopt -s nullglob dotglob
+	    local -a certs
+	    cd "$sm_ca_dir" && certs=(*)
+	    cd "$tmp_sm_ca_dir" && certs+=(*)
+	    IFS=$'\n'
+	    printf '%s' "${certs[*]}"
+	) | sort | uniq -u)
+
+	if (( ${#removed_certs[@]} )); then
+	    cp -n -dR --preserve=all "$tmp_sm_ca_dir"/* "$sm_ca_dir/" ||
+		exit_message "Could not copy certs back to $sm_ca_dir"
+	    
+	    infomsg '%s' \
+		$'Some Subscription Manager certificates ' \
+		"were restored to $sm_ca_dir after"$'\n' \
+		$'migration so that the subscription-manager ' \
+		$'command will continue to work:\n\n'
+	    printf '%s\n' "${removed_certs[@]}" ''
+	    cat <<EOF
+If you no longer need to use the subscription-manager command then you may
+safely remove these files.
+EOF
+	fi
+    fi
 }
 
 # Check if this system is running on EFI
@@ -689,7 +766,8 @@ fix_efi () (
 establish_gpg_trust () {
     # create temp dir and verify it is really created and empty, so we are sure deleting it afterwards won't cause any harm
     declare -g gpg_tmp_dir
-    if ! gpg_tmp_dir=$(mktemp -d) || [[ ! -d "$gpg_tmp_dir" ]]; then
+    gpg_tmp_dir=$tmp_dir/gpg
+    if ! mkdir "$gpg_tmp_dir" || [[ ! -d "$gpg_tmp_dir" ]]; then
 	exit_message "Error creating temp dir"
     fi
     # failglob makes pathname expansion fail if empty, dotglob adds files starting with . to pathname expansion
@@ -736,6 +814,8 @@ if (( ! noopts )); then
     usage
 fi
 
+pre_setup
+trap exit_clean EXIT
 pre_check
 efi_check
 bin_check
