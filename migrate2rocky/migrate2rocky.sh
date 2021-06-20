@@ -63,6 +63,7 @@ logfile=/var/log/migrate2rocky.log
 # Output to 4 just goes to stderr.
 # Output to 5 just goes to the logfile.
 truncate -s0 "$logfile"
+# shellcheck disable=SC2094
 exec \
     3>&1 \
     4>&2 \
@@ -82,6 +83,7 @@ msg_format () {
     _var="$1"
     shift
     if (( $# > 1 )); then
+	# shellcheck disable=SC2059
 	printf -v "$_var" "$@"
     else
 	printf -v "$_var" "%s" "$1"
@@ -277,6 +279,7 @@ repoinfo () {
     # it won't appear in a .repo file on a line by itself, so it's safe to
     # search for the string to make the awk parser look all the way to the end
     # of the file.
+    # shellcheck disable=SC2154
     repoinfo_results[Repo-gpgkey]=$(
 	awk '
 	    $0=="['"${repoinfo_results[Repo-id]}"']",$0=="end_of_file" {
@@ -290,6 +293,7 @@ repoinfo () {
 
     # Add an indicator of whether this is a subscription-manager managed
     # repository.
+    # shellcheck disable=SC2154
     repoinfo_results[Repo-managed]=$(
 	awk '
             BEGIN {FS="[)(]"}
