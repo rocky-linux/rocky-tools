@@ -30,6 +30,9 @@ base packages, the migration result will end in a corrupted system.
 
 This especially happens on systems configured with a centralized package management
 like Katello (RedHat Satellite 6) or Uyuni (RedHat Satellite 5, SUSE Manager).
+If one of these systems is configured it is possible to remove all projects/channels
+so the designated /etc/yum.repos.d/redhat.repo or
+/etc/yum.repos.d/susemanager:channels.repo file is empty or missing.
 
 #### RHEL migrations show error messages during conversion
 

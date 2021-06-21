@@ -188,11 +188,11 @@ exit_clean () {
 }
 
 pre_check () {
-    if [[ -e /etc/yum.repos.d/redhat.repo ]]; then
-	exit_message "Migration from Katello-modified systems is not supported by migrate2rocky.\nPlease unconfigure all Katello configured repos, remove the /etc/yum.repos.d/redhat.repo file and re-enable the original repos."
+    if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]] || [[ -s /etc/yum.repos.d/redhat.repo ]]; then
+	    exit_message "Migration from Katello-modified systems is not supported by migrate2rocky. See the README file for details."
     fi
-    if [[ -e /etc/yum.repos.d/susemanager\:channels.repo ]]; then
-    exit_message "Migration from Uyuni-modified systems is not supported by migrate2rocky.\nPlease unconfigure all Uyuni configured repos, remove the /etc/yum.repos.d/susemanager:channels.repo file and re-enable the original repos."
+    if [[ -e /etc/salt/minion.d/susemanager.conf ]] || [[ -s /etc/yum.repos.d/susemanager\:channels.repo ]]; then
+        exit_message "Migration from Uyuni/SUSE Manager-modified systems is not supported by migrate2rocky. See the README file for details."
     fi
 }
 
