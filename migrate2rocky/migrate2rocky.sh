@@ -191,7 +191,7 @@ pre_check () {
     if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
 	    exit_message "Migration from Katello-modified systems is not supported by migrate2rocky. See the README file for details."
     fi
-    if [[ -e /etc/salt/minion.d/susemanager.conf ]] || [[ -s /etc/yum.repos.d/susemanager\:channels.repo ]]; then
+    if [[ -e /etc/salt/minion.d/susemanager.conf ]]; then
         exit_message "Migration from Uyuni/SUSE Manager-modified systems is not supported by migrate2rocky. See the README file for details."
     fi
 }
