@@ -436,6 +436,7 @@ collect_system_info () {
 	[rocky-release]=system-release
     )
     addl_provide_removes=(
+	redhat-release
 	redhat-release-eula
     )
 
