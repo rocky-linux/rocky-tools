@@ -3,7 +3,7 @@ Rocky Mirror Scripts
 
 Scripts and snippets for mirror admins.
 
-Please read https://docs.rockylinux.org/en/rocky/8/guides/add_mirror_manager for further information on setting up a Rocky mirror.
+Please read https://docs.rockylinux.org/guides/add_mirror_manager/ for further information on setting up a Rocky mirror.
 
 ## example.crontab
 
