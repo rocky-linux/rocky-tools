@@ -188,7 +188,7 @@ exit_clean () {
 }
 
 pre_check () {
-    if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]] || [[ -s /etc/yum.repos.d/redhat.repo ]]; then
+    if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
 	    exit_message "Migration from Katello-modified systems is not supported by migrate2rocky. See the README file for details."
     fi
     if [[ -e /etc/salt/minion.d/susemanager.conf ]] || [[ -s /etc/yum.repos.d/susemanager\:channels.repo ]]; then

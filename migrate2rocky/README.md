@@ -24,15 +24,14 @@ as enabled** (i.e. for CentOS the `baseos` repo configuration in the
 Also make sure that there are **no other repositories** which could interfere with the
 original configuration.
 
-As long as the original repository configuration is disabled and a new alternative
-repository gets added in a different file, or not the only repo that provides the
-base packages, the migration result will end in a corrupted system.
+Any distribution that has had its core repositories altered, removed, duplicated
+or overridden may cause migrate2rocky to break or corrupt the system when run.
+Any attempt to migrate such systems, even after reversing the changes made by such
+software, is not supported in any way. In all cases you should backup your system
+before using migrate2rocky and USE AT YOUR OWN RISK.
 
 This especially happens on systems configured with a centralized package management
 like Katello (RedHat Satellite 6) or Uyuni (RedHat Satellite 5, SUSE Manager).
-If one of these systems is configured it is possible to remove all projects/channels
-so the designated /etc/yum.repos.d/redhat.repo or
-/etc/yum.repos.d/susemanager:channels.repo file is empty or missing.
 
 #### RHEL migrations show error messages during conversion
 
