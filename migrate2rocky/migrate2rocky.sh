@@ -432,6 +432,7 @@ collect_system_info () {
 	[rocky-indexhtml]=redhat-indexhtml
 	[rocky-repos]="$baseos_filename"
 	[rocky-logos]=system-logos
+	[rocky-logos-httpd]=system-logos-httpd
 	[rocky-gpg-keys]="$baseos_gpgkey"
 	[rocky-release]=system-release
     )
