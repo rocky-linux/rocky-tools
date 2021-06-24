@@ -56,6 +56,16 @@ on reboot but the other ones will remain until they are removed or replaced by
 newer kernels.  If you want you can manually remove the old kernels after reboot
 with dnf or rpm.
 
+#### Symbolic links to Java programs in `/etc/alternatives` are gone
+
+After migrating a system with an OpenJDK package installed you might encounter
+that java does not work any more. Apparently there is a bug in the OpenJDK
+packages that leads to losing the symbolic links in `/etc/alternatives` during
+the migration. Details can be found
+[here](https://github.com/rocky-linux/rocky-tools/issues/41#issuecomment-867200639).
+There you can also find a simple script that recreates the package default
+alternatives.
+
 ### Latest Version
 
 The latest version of this script can be found [here](https://github.com/rocky-linux/rocky-tools/).
