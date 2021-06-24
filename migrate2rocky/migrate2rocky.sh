@@ -268,6 +268,9 @@ repoinfo () {
     fi
     declare -gA repoinfo_results=()
     while IFS=" :" read -r name val; do
+	if [[ ! ( $name || $val) ]]; then
+		continue
+	fi
 	if [[ -z $name ]]; then
 	    repoinfo_results[$prev]+=" $val"
 	else
