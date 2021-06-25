@@ -59,12 +59,14 @@ with dnf or rpm.
 #### Symbolic links to Java programs in `/etc/alternatives` are gone
 
 After migrating a system with an OpenJDK package installed you might encounter
-that java does not work any more. Apparently there is a bug in the OpenJDK
-packages that leads to losing the symbolic links in `/etc/alternatives` during
-the migration. Details can be found
-[here](https://github.com/rocky-linux/rocky-tools/issues/41#issuecomment-867200639).
-There you can also find a simple script that recreates the package default
-alternatives.
+that java does not work any more. There is a bug in the OpenJDK packages that
+leads to losing the symbolic links in `/etc/alternatives` during the migration.
+A bug report against the upstream packages has been filed
+[here](https://bugzilla.redhat.com/show_bug.cgi?id=1976053).  As a workaround
+you can use the following script to recreate the package default alternatives:
+```
+rpm -qa --scripts java-{1.8.0,11}-openjdk-{headless,devel} | sed -n '/postinstall/, /exit/{ /postinstall/! { /exit/ ! p} }' | sh
+```
 
 ### Latest Version
 
