@@ -215,7 +215,7 @@ bin_check() {
 	curl sha512sum mktemp
     )
     if [[ $update_efi ]]; then
-	bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil)
+	bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil lsblk)
     fi
     for bin in "${bins[@]}"; do
 	if ! type "$bin" >/dev/null 2>&1; then
@@ -351,10 +351,13 @@ collect_system_info () {
     # Check the efi mount first, so we can bail before wasting time on all these
     # other checks if it's not there.
     if [[ $update_efi ]]; then
-	declare -g efi_mount
+	local efi_mount
+	declare -g efi_disk efi_partition
 	efi_mount=$(findmnt --mountpoint /boot/efi --output SOURCE \
 	    --noheadings) ||
 	    exit_message "Can't find EFI mount.  No EFI  boot detected."
+	efi_disk=/dev/$(lsblk -no pkname "$efi_mount")
+	efi_partition=$(<"/sys/block/$efi_disk/${efi_mount##*/}/partition")
     fi
 
     # check if EFI secure boot is enabled
@@ -773,7 +776,8 @@ efi_check () {
 fix_efi () (
     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
     	exit_message "Error updating the grub config."
-    efibootmgr -c -d "$efi_mount" -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
+    efibootmgr -c -d "$efi_disk" -p "$efi_partition" -L "Rocky Linux" \
+	-l /EFI/rocky/grubx64.efi ||
 	exit_message "Error updating uEFI firmware."
 )
 
