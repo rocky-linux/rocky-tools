@@ -708,10 +708,13 @@ EOF
 	infomsg $'Subscription Manager found on system.\n'
 	cat <<EOF
 If you're converting from a subscription-managed distribution such as RHEL then
-you may no longer need subscription-manager.  While it won't hurt anything to
-have it on your system you may be able to safely remove it with
-"dnf remove subscription-manager".  Take care that it doesn't remove something
-that you want to keep.
+you may no longer need subscription-manager or dnf-plugin-subscription-manager.
+While it won't hurt anything to have it on your system you may be able to safely
+remove it with:
+
+"dnf remove subscription-manager dnf-plugin-subscription-manager".
+
+Take care that it doesn't remove something that you want to keep.
 
 The subscription-manager dnf plugin may be enabled for the benefit of
 Subscription Management. If no longer desired, you can use
