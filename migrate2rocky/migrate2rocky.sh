@@ -351,10 +351,12 @@ collect_system_info () {
     # Check the efi mount first, so we can bail before wasting time on all these
     # other checks if it's not there.
     if [[ $update_efi ]]; then
-	declare -g efi_mount
+	declare -g efi_mount efi_disk efi_disk_part
 	efi_mount=$(findmnt --mountpoint /boot/efi --output SOURCE \
 	    --noheadings) ||
-	    exit_message "Can't find EFI mount.  No EFI  boot detected."
+	    exit_message "Can't find EFI mount.  No EFI boot detected."
+	efi_disk=$(echo "${efi_mount}" | sed -re 's/(p|)[0-9]$//g')
+	efi_disk_part=${efi_mount: -1}
     fi
 
     # check if EFI secure boot is enabled
@@ -773,7 +775,7 @@ efi_check () {
 fix_efi () (
     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
     	exit_message "Error updating the grub config."
-    efibootmgr -c -d "$efi_mount" -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
+    efibootmgr -c -d "$efi_disk" -p "$efi_disk_part" -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
 	exit_message "Error updating uEFI firmware."
 )
 
