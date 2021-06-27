@@ -357,7 +357,7 @@ collect_system_info () {
 	    --noheadings) ||
 	    exit_message "Can't find EFI mount.  No EFI  boot detected."
 	efi_disk=/dev/$(lsblk -no pkname "$efi_mount")
-	efi_partition=$(<"/sys/block/$efi_disk/${efi_mount##*/}/partition")
+	efi_partition=$(<"/sys/block/${efi_disk##*/}/${efi_mount##*/}/partition")
     fi
 
     # check if EFI secure boot is enabled
