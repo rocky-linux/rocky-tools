@@ -29,8 +29,7 @@
 # SOFTWARE.
 #
 
-## Rocky is RC status. Using this script means you accept all risks of system
-## instability.
+## Using this script means you accept all risks of system instability.
 
 # These checks need to be right at the top because we start with bash-isms right
 # away in this script.
