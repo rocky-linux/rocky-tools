@@ -560,6 +560,14 @@ generate_rpm_info() {
   rpm -Va | sort -k3 > "${convert_info_dir}/$HOSTNAME-rpm-list-verified-$1.log"
 }
 
+# Run a dnf update before the actual migration.
+pre_update() {
+    infomsg '%s\n' "Running dnf update before we attempt the migration."
+    dnf -y update || exit_message \
+$'Error running pre-update.  Stopping now to avoid putting the system in an\n'\
+$'unstable state.  Please correct the issues shown here and try again.'
+}
+
 package_swaps() {
     # Save off any subscription-manger keys, just in case.
     if ( shopt -s failglob dotglob; : "$sm_ca_dir"/* ) 2>/dev/null ; then
@@ -846,6 +854,7 @@ fi
 if [[ $convert_to_rocky ]]; then
     collect_system_info
     establish_gpg_trust
+    pre_update
     package_swaps
 fi
 
