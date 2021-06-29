@@ -563,7 +563,7 @@ generate_rpm_info() {
 # Run a dnf update before the actual migration.
 pre_update() {
     infomsg '%s\n' "Running dnf update before we attempt the migration."
-    dnf -y update || error_message \
+    dnf -y update || exit_message \
 $'Error running pre-update.  Stopping now to avoid putting the system in an\n'\
 $'unstable state.  Please correct the issues shown here and try again.'
 }
