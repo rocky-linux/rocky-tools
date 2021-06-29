@@ -450,6 +450,14 @@ collect_system_info () {
 	redhat-release-eula
     )
 
+    # Checdk to make sure that we don't already have a full or partial
+    # RockyLinux install.
+    if [[ $(rpm -qa "${!provides_pkg_map[@]}") ]]; then
+	exit_message \
+$'Found a full or partial RockyLinux install already in place.  Aborting\n'
+$'because continuing with the migration could cause further damage to system.'
+    fi
+
     for pkg in "${!provides_pkg_map[@]}"; do
 	printf '.'
 	prov=${provides_pkg_map[$pkg]}
