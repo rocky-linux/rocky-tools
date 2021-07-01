@@ -441,6 +441,7 @@ collect_system_info () {
 	[rocky-repos]="$baseos_filename"
 	[rocky-logos]=system-logos
 	[rocky-logos-httpd]=system-logos-httpd
+	[rocky-logos-ipa]=system-logos-ipa
 	[rocky-gpg-keys]="$baseos_gpgkey"
 	[rocky-release]=system-release
     )
