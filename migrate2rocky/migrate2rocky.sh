@@ -450,7 +450,7 @@ collect_system_info () {
 	redhat-release-eula
     )
 
-    # Checdk to make sure that we don't already have a full or partial
+    # Check to make sure that we don't already have a full or partial
     # RockyLinux install.
     if [[ $(rpm -qa "${!provides_pkg_map[@]}") ]]; then
 	exit_message \
