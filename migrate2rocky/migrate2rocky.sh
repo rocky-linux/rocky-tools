@@ -350,13 +350,37 @@ collect_system_info () {
     # Check the efi mount first, so we can bail before wasting time on all these
     # other checks if it's not there.
     if [[ $update_efi ]]; then
-	local efi_mount
-	declare -g efi_disk efi_partition
+	local efi_mount kname
+	declare -g -a efi_disk efi_partition
 	efi_mount=$(findmnt --mountpoint /boot/efi --output SOURCE \
 	    --noheadings) ||
 	    exit_message "Can't find EFI mount.  No EFI  boot detected."
-	efi_disk=/dev/$(lsblk -no pkname "$efi_mount")
-	efi_partition=$(<"/sys/block/${efi_disk##*/}/${efi_mount##*/}/partition")
+	kname=$(lsblk -dno kname "$efi_mount")
+	efi_disk=$(lsblk -dno pkname "/dev/$kname")
+
+	if [[ $efi_disk ]]; then
+	    efi_partition=$(<"/sys/block/$efi_disk/$kname/partition")
+	else
+	    # This is likely an md-raid or other type of virtual disk, we need
+	    # to dig a little deeper to find the actual physical disks and
+	    # partitions.
+	    kname=$(lsblk -dno kname "$efi_mount")
+	    cd "/sys/block/$kname/slaves" || exit_message \
+"Unable to gather EFI data: Can't cd to /sys/block/$kname/slaves."
+	    if ! (shopt -s failglob; : *) 2>/dev/null; then
+		exit_message \
+"Unable to gather EFI data: No slaves found in /sys/block/$kname/slaves."
+	    fi
+	    for d in *; do
+		efi_disk+=("$(lsblk -dno pkname "/dev/$d")")
+		efi_partition+=("$(<"$d/partition")")
+		if [[ ! ${efi_disk[-1]} || ! ${efi_partition[-1]} ]]; then
+		    exit_message \
+"Unable to gather EFI data: Can't find disk name or partition number for $d."
+		fi
+	    done
+	    cd -
+	fi
     fi
 
     # check if EFI secure boot is enabled
@@ -486,7 +510,7 @@ $'because continuing with the migration could cause further damage to system.'
     for p in "${!pkg_map[@]}"; do
 	if [[ ${pkg_map[$p]} && ${installed_pkg_check[${pkg_map[$p]}]} ]]; then
 	    installed_pkg_map[$p]=${pkg_map[$p]}
-	fi
+ 	fi
     done;
 
     printf '%s\n' '' "We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 equivalents"
@@ -792,9 +816,11 @@ efi_check () {
 fix_efi () (
     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
     	exit_message "Error updating the grub config."
-    efibootmgr -c -d "$efi_disk" -p "$efi_partition" -L "Rocky Linux" \
-	-l /EFI/rocky/grubx64.efi ||
-	exit_message "Error updating uEFI firmware."
+    for i in "${!efi_disk[@]}"; do
+	efibootmgr -c -d "/dev/${efi_disk[$i]}" -p "${efi_partition[$i]}" \
+	    -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
+	    exit_message "Error updating uEFI firmware."
+    done
 )
 
 # Download and verify the Rocky Linux package signing key
