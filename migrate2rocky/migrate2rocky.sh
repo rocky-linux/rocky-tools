@@ -371,6 +371,7 @@ collect_system_info () {
 		exit_message \
 "Unable to gather EFI data: No slaves found in /sys/block/$kname/slaves."
 	    fi
+	    efi_disk=()
 	    for d in *; do
 		efi_disk+=("$(lsblk -dno pkname "/dev/$d")")
 		efi_partition+=("$(<"$d/partition")")
