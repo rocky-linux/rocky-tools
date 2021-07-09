@@ -222,9 +222,20 @@ bin_check() {
 	fi
     done
 
-    if ! pkg_ver dnf 4.2; then
-	exit_message 'dnf >= 4.2 is required for this script.  Please run "dnf update" first.'
-    fi
+    local -A pkgs
+    pkgs=(
+	[dnf]=4.2
+	[dnf-plugins-core]=0
+    )
+
+    for pkg in "${!pkgs[@]}"; do
+	ver=${pkgs[$pkg]}
+	if ! pkg_ver "$pkg" "$ver"; then
+	    exit_message \
+"$pkg >= $ver is required for this script.  Please run "\
+"\"dnf install $pkg; dnf update\" first."
+	fi
+    done;
 
     if (( ${#missing[@]} )); then
 	exit_message "Commands not found: ${missing[*]}.  Possible bad PATH setting or corrupt installation."
@@ -717,9 +728,10 @@ EOF
     infomsg $'\nRemoving dnf cache\n'
     rm -rf /var/cache/{yum,dnf}
     infomsg $'Ensuring repos are enabled before the package swap\n'
-    safednf -y config-manager --set-enabled "${!repo_map[@]}" || {
-      printf '%s\n' 'Repo name missing?'
-      exit 25
+    safednf -y --enableplugin=config-manager config-manager \
+	--set-enabled "${!repo_map[@]}" || {
+	printf '%s\n' 'Repo name missing?'
+	exit 25
     }
 
     if (( ${#managed_repos[@]} )); then
@@ -730,7 +742,8 @@ EOF
 
 	if (( ${#managed_repos[@]} )); then
 	    infomsg $'\nDisabling subscription managed repos\n'
-	    safednf -y config-manager --disable "${managed_repos[@]}"
+	    safednf -y --enableplugin=config-manager config-manager \
+		--disable "${managed_repos[@]}"
 	fi
     fi
 
