@@ -52,6 +52,7 @@ conflicting directory and install rocky-release with the rpm command.
 
 The above error message is a display bug in dnf.  It does not affect the actual
 dnf command or the migration.  You may safely ignore this message.
+(RHBZ#1980712)
 
 #### Grub still shows kernel entries from previous installation
 
