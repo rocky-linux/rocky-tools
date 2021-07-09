@@ -48,6 +48,11 @@ This results from conflicts in the directory structure of RHEL with that of
 RockyLinux.  migrate2rocky will detect the issue and go on to remove the
 conflicting directory and install rocky-release with the rpm command.
 
+#### No matches found for the following enable plugin patterns: config-manager
+
+The above error message is a display bug in dnf.  It does not affect the actual
+dnf command or the migration.  You may safely ignore this message.
+
 #### Grub still shows kernel entries from previous installation
 
 This is normal.  The running kernel cannot be safely removed when migrate2rocky
