@@ -411,7 +411,7 @@ collect_system_info () {
 
     # Some OracleLinux modules have stream names of ol8 instead of rhel8 and ol
     # instead of rhel.  This is a map that does a glob match and replacement.
-    local -A module_re_map
+    local -A module_glob_map
     module_glob_map=(
 	['%:ol8']=:rhel8
 	['%:ol']=:rhel
