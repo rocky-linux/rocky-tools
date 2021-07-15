@@ -569,11 +569,18 @@ $'because continuing with the migration could cause further damage to system.'
     )
 
     # Map the known module name differences.
+    disable_modules=()
+    local i gl repl mod
     for i in "${!enabled_modules[@]}"; do
+	mod=${enabled_modules[$i]}
 	for gl in "${!module_glob_map[@]}"; do
 	    repl=${module_glob_map[$gl]}
-	    enabled_modules[$i]=${enabled_modules[$i]/$gl/$repl}
+	    mod=${mod/$gl/$repl}
 	done
+	if [[ $mod != ${enabled_modules[$i]} ]]; then
+	    disable_modules+=(${enabled_modules[$i]})
+	    enabled_modules[$i]=$mod
+	fi
     done
 
     # Remove entries matching any excluded modules.
@@ -763,6 +770,12 @@ EOF
 	    safednf -y --enableplugin=config-manager config-manager \
 		--disable "${managed_repos[@]}"
 	fi
+    fi
+
+    if (( ${#disable_modules[@]} )); then
+	infomsg $'Disabling modules\n\n'
+	safednf -y module disable "${disable_modules[@]}" ||
+	    exit_message "Can't disable modules ${disable_modules[*]}"
     fi
 
     if (( ${#enabled_modules[@]} )); then
