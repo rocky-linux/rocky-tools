@@ -409,6 +409,14 @@ collect_system_info () {
 	libselinux-python:2.8
     )
 
+    # Some OracleLinux modules have stream names of ol8 instead of rhel8 and ol
+    # instead of rhel.  This is a map that does a glob match and replacement.
+    local -A module_re_map
+    module_glob_map=(
+	['%:ol8']=:rhel8
+	['%:ol']=:rhel
+    );
+
     # We need to map rockylinux repository names to the equivalent repositories
     # in the source distro.  To do that we look for known packages in each
     # repository and see what repo they came from.  We need to use repoquery for
@@ -556,6 +564,15 @@ $'because continuing with the migration could cause further damage to system.'
     	' | sort -u
 	set +e +o pipefail
     )
+
+    # Map the known module name differences.
+    for i in "${!enabled_modules[@]}"; do
+	for gl in "${!module_glob_map[@]}"; do
+	    repl=${module_glob_map[$gl]}
+	    enabled_modules[$i]=${enabled_modules[$i]/$gl/$repl}
+	done
+    done
+
     # Remove entries matching any excluded modules.
     if (( ${#module_excludes[@]} )); then
 	printf '%s\n' '' "Excluding modules:" "${module_excludes[@]}"
