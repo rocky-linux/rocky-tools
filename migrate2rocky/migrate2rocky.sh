@@ -358,6 +358,9 @@ safednf () (
 )
 
 collect_system_info () {
+    # Dump the DNF cache first so we start with a clean slate.
+    infomsg $'\nRemoving dnf cache\n'
+    rm -rf /var/cache/{yum,dnf}
     # Check the efi mount first, so we can bail before wasting time on all these
     # other checks if it's not there.
     if [[ $update_efi ]]; then
@@ -725,8 +728,6 @@ EOF
     fi
 
     # Distrosync
-    infomsg $'\nRemoving dnf cache\n'
-    rm -rf /var/cache/{yum,dnf}
     infomsg $'Ensuring repos are enabled before the package swap\n'
     safednf -y --enableplugin=config-manager config-manager \
 	--set-enabled "${!repo_map[@]}" || {
