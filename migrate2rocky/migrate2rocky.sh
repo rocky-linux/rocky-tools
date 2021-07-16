@@ -884,7 +884,7 @@ establish_gpg_trust () {
     # extract the filename from the url, use the temp dir just created
     declare -g gpg_key_file="$gpg_tmp_dir/${gpg_key_url##*/}"
 
-    if ! curl -o "$gpg_key_file" --silent --show-error "$gpg_key_url"; then
+    if ! curl -L -o "$gpg_key_file" --silent --show-error "$gpg_key_url"; then
 	rm -rf "$gpg_tmp_dir"
 	exit_message "Error downloading the Rocky Linux signing key."
     fi
