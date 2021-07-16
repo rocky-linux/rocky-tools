@@ -34,13 +34,13 @@
 # These checks need to be right at the top because we start with bash-isms right
 # away in this script.
 if [ -n "$POSIXLY_CORRECT" ] || [ -z "$BASH_VERSION" ]; then
-    printf '%s\n' "bash >= 4.0 is required for this script." >&2
+    printf '%s\n' "bash >= 4.2 is required for this script." >&2
     exit 1
 fi
 
-# We need bash version >= 4 for associative arrays.
-if (( BASH_VERSINFO < 4 )); then
-    printf '%s\n' "bash >= 4.0 is required for this script." >&2
+# We need bash version >= 4.2 for associative arrays and other features.
+if (( BASH_VERSINFO[0]*100 + BASH_VERSINFO[1] < 402 )); then
+    printf '%s\n' "bash >= 4.2 is required for this script." >&2
     exit 1
 fi
 
