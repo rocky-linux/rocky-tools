@@ -209,9 +209,8 @@ bin_check() {
 
     local -a missing bins
     bins=(
-	rpm dnf awk column tee tput mkdir
-	cat arch sort uniq rmdir rm head
-	curl sha512sum mktemp
+	rpm dnf awk column tee tput mkdir cat arch sort uniq
+	rmdir rm head curl sha512sum mktemp systemd-detect-virt
     )
     if [[ $update_efi ]]; then
 	bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil lsblk)
@@ -852,7 +851,8 @@ efi_check () {
     fi
     
     # Now that we know /sys is reliable, use it to check if we are running on EFI or not
-    if [[ -d /sys/firmware/efi/ ]]; then
+    if [[ -d /sys/firmware/efi/ ]] && ! systemd-detect-virt --quiet --container
+    then
 	declare -g update_efi
 	update_efi=true
     fi
