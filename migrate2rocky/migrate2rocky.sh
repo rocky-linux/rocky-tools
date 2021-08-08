@@ -231,6 +231,7 @@ bin_check() {
     for pkg in "${!pkgs[@]}"; do
 	ver=${pkgs[$pkg]}
 	if ! pkg_ver "$pkg" "$ver"; then
+	    # shellcheck disable=SC2140
 	    exit_message \
 "$pkg >= $ver is required for this script.  Please run "\
 "\"dnf install $pkg; dnf update\" first."
@@ -381,7 +382,7 @@ collect_system_info () {
 	    kname=$(lsblk -dno kname "$efi_mount")
 	    cd "/sys/block/$kname/slaves" || exit_message \
 "Unable to gather EFI data: Can't cd to /sys/block/$kname/slaves."
-	    if ! (shopt -s failglob; : *) 2>/dev/null; then
+	    if ! (shopt -s failglob; : ./*) 2>/dev/null; then
 		exit_message \
 "Unable to gather EFI data: No slaves found in /sys/block/$kname/slaves."
 	    fi
@@ -577,7 +578,7 @@ $'because continuing with the migration could cause further damage to system.'
 	    repl=${module_glob_map[$gl]}
 	    mod=${mod/$gl/$repl}
 	done
-	if [[ $mod != ${enabled_modules[$i]} ]]; then
+	if [[ $mod != "${enabled_modules[$i]}" ]]; then
 	    disable_modules+=(${enabled_modules[$i]})
 	    enabled_modules[$i]=$mod
 	fi
