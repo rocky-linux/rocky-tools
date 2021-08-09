@@ -186,6 +186,9 @@ exit_clean () {
     if [[ -d "$tmp_dir" ]]; then
 	rm -rf "$tmp_dir"
     fi
+    if [[ -f "$container_macros" ]]; then
+	rm -f "$container_macros"
+    fi
 }
 
 pre_check () {
@@ -609,7 +612,8 @@ $'because continuing with the migration could cause further damage to system.'
 }
 
 convert_info_dir=/root/convert
-unset convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi
+unset convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi \
+    container_macros
 
 usage() {
   printf '%s\n' \
@@ -850,9 +854,13 @@ efi_check () {
 	exit_message "/sys is not accessible."
     fi
     
-    # Now that we know /sys is reliable, use it to check if we are running on EFI or not
-    if [[ -d /sys/firmware/efi/ ]] && ! systemd-detect-virt --quiet --container
-    then
+    # Now that we know /sys is reliable, use it to check if we are running on
+    # EFI or not
+    if systemd-detect-virt --quiet --container; then
+	declare -g container_macros
+	container_macros=$(mktemp /etc/rpm/macros.zXXXXXX)
+	printf '%s\n' '%_netsharedpath /sys:/proc' > "$container_macros"
+    elif [[ -d /sys/firmware/efi/ ]]; then
 	declare -g update_efi
 	update_efi=true
     fi
