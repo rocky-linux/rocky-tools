@@ -74,6 +74,15 @@ you can use the following script to recreate the package default alternatives:
 rpm -qa --scripts java-{1.8.0,11}-openjdk-{headless,devel} | sed -n '/postinstall/, /exit/{ /postinstall/! { /exit/ ! p} }' | sh
 ```
 
+#### IPA fails to start after migration
+
+This issue is caused by a version mismatch due to the way that modules work that
+trick ipa into thinking that the package was downgraded even if it was not.  To
+fix this issue run the following command after migration:
+```
+ipa-server-upgrade --skip-version-check
+```
+
 ### Latest Version
 
 The latest version of this script can be found [here](https://github.com/rocky-linux/rocky-tools/).
