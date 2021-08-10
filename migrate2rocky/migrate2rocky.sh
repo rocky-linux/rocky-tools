@@ -105,7 +105,8 @@ errmsg () {
     printf '%s%s%s' "$errcolor" "$msg" "$nocolor" >&4
 }
 
-export LC_ALL=en_US.UTF-8 LANGUAGE=en_US
+export LC_ALL=C.UTF-8
+unset LANGUAGE
 shopt -s nullglob
 
 SUPPORTED_MAJOR="8"
