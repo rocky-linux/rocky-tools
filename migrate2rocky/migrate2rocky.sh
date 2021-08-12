@@ -127,7 +127,10 @@ repo_urls=(
 
 # The repos package for CentOS stream requires special handling.
 declare -g -A stream_repos_pkgs
-stream_repos_pkgs=( [rocky-repos]=centos-stream-repos )
+stream_repos_pkgs=(
+    [rocky-repos]=centos-stream-repos
+    [epel-release]=epel-next-release
+)
 # Prefix to add to CentOS stream repo names when renaming them.
 stream_prefix=stream-
 
@@ -546,12 +549,17 @@ $'because continuing with the migration could cause further damage to system.'
     done;
 
     # Special Handling for CentOS Stream Repos
+    installed_sys_stream_repos_pkgs=()
     installed_stream_repos_pkgs=()
     for p in "${!stream_repos_pkgs[@]}"; do
 	if [[ ${installed_pkg_map[$p]} &&
 	      ${installed_pkg_map[$p]} == "${stream_repos_pkgs[$p]}" ]]
 	then
+	    # System package that needs to be swapped / disabled
 	    installed_pkg_map[$p]=
+	    installed_sys_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+	elif rpm --quiet -q "${stream_repos_pkgs[$p]}"; then
+	    # Non-system package, repos just need to be disabled.
 	    installed_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
 	fi
     done
@@ -563,11 +571,18 @@ $'because continuing with the migration could cause further damage to system.'
 	done
     )
 
-    if (( ${#installed_stream_repos_pkgs[@]} )); then
+    if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
 	printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the following packages will be '\
 'removed from the rpm database but the included repos will be renamed and '\
-'retained:' \
+'retained but disabled:' \
+	    "${installed_sys_stream_repos_pkgs[@]}"
+    fi
+
+    if (( ${#installed_stream_repos_pkgs[@]} )); then
+	printf '%s\n' '' \
+'Also to aid the transition from CentOS Stream the repos included in the '\
+'following packages will be renamed and retained but disabled:' \
 	    "${installed_stream_repos_pkgs[@]}"
     fi
 
@@ -692,7 +707,8 @@ package_swaps() {
 	# Get a list of the repo files.
 	local -a repos_files
 	readarray -t repos_files < <(
-	    rpm -ql "${installed_stream_repos_pkgs[@]}" |
+	    saferpm -ql "${installed_sys_stream_repos_pkgs[@]}" \
+		"${installed_stream_repos_pkgs[@]}" |
 	    grep '^/etc/yum\.repos\.d/.\+\.repo$'
 	)
 
@@ -841,7 +857,8 @@ EOF
     dnf -y distro-sync || exit_message "Error during distro-sync."
 
     # Disable Stream repos.
-    if (( ${#installed_stream_repos_pkgs[@]} )); then
+    if (( ${#installed_sys_stream_repos_pkgs[@]} ||
+	  ${#installed_stream_repos_pkgs[@]} )); then
 	dnf -y --enableplugin=config_manager config-manager --set-disabled \
 	    "$stream_prefix*" ||
 	    errmsg \
