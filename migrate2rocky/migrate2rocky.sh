@@ -46,7 +46,8 @@ fi
 
 # Make sure we're root.
 if (( EUID != 0 )); then
-    printf '%s\n' "You must run this script as root.  Either use sudo or 'su -c ${0}'" >&2
+    printf '%s\n' \
+	"You must run this script as root.  Either use sudo or 'su -c ${0}'" >&2
     exit 1
 fi
 
@@ -193,21 +194,27 @@ exit_clean () {
 
 pre_check () {
     if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
-	    exit_message "Migration from Katello-modified systems is not supported by migrate2rocky. See the README file for details."
+	exit_message \
+'Migration from Katello-modified systems is not supported by migrate2rocky. '\
+'See the README file for details.'
     fi
     if [[ -e /etc/salt/minion.d/susemanager.conf ]]; then
-        exit_message "Migration from Uyuni/SUSE Manager-modified systems is not supported by migrate2rocky. See the README file for details."
+        exit_message \
+'Migration from Uyuni/SUSE Manager-modified systems is not supported by '\
+'migrate2rocky. See the README file for details.'
     fi
 }
 
 # All of the binaries used by this script are available in a EL8 minimal install
 # and are in /bin, so we should not encounter a system where the script doesn't
-# work unless it's severly broken.  This is just a simple check that will cause
+# work unless it's severely broken.  This is just a simple check that will cause
 # the script to bail if any expected system utilities are missing.
 bin_check() {
     # Check the platform.
     if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
-	exit_message "This script must be run on an EL8 distribution.  Migration from other distributions is not supported."
+	exit_message \
+'This script must be run on an EL8 distribution.  Migration from other '\
+'distributions is not supported.'
     fi
 
     local -a missing bins
@@ -241,7 +248,9 @@ bin_check() {
     done;
 
     if (( ${#missing[@]} )); then
-	exit_message "Commands not found: ${missing[*]}.  Possible bad PATH setting or corrupt installation."
+	exit_message \
+"Commands not found: ${missing[*]}.  Possible bad PATH setting or corrupt "\
+"installation."
     fi
 }
 
@@ -282,7 +291,7 @@ repoinfo () {
     declare -gA repoinfo_results=()
     while IFS=" :" read -r name val; do
 	if [[ ! ( $name || $val) ]]; then
-		continue
+	    continue
 	fi
 	if [[ -z $name ]]; then
 	    repoinfo_results[$prev]+=" $val"
@@ -404,7 +413,9 @@ collect_system_info () {
     # check if EFI secure boot is enabled
     if [[ $update_efi ]]; then
 	if mokutil --sb-state 2>&1 | grep -q "SecureBoot enabled"; then
-	    exit_message "EFI Secure Boot is enabled but Rocky Linux doesn't provide a signed shim yet. Disable EFI Secure Boot and reboot."
+	    exit_message \
+"EFI Secure Boot is enabled but Rocky Linux doesn't provide a signed shim yet."\
+" Disable EFI Secure Boot and reboot."
 	fi
     fi
 
@@ -451,10 +462,13 @@ collect_system_info () {
 	repo_map[$r]=${repoquery_results[Repository]}
     done
 
-    printf '%s\n' '' '' "Found the following repositories which map from $PRETTY_NAME to Rocky Linux 8:"
-    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(for r in "${!repo_map[@]}"; do
-	printf '%s\t%s\n' "${repo_map[$r]}" "$r"
-	done)
+    printf '%s\n' '' '' \
+"Found the following repositories which map from $PRETTY_NAME to Rocky Linux 8:"
+    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(
+	for r in "${!repo_map[@]}"; do
+	    printf '%s\t%s\n' "${repo_map[$r]}" "$r"
+	done
+    )
 
     infomsg $'\n'"Getting system package names for $PRETTY_NAME"
 
@@ -521,14 +535,20 @@ $'because continuing with the migration could cause further damage to system.'
 	addl_pkg_removes+=("$pkg")
     done
 
-    printf '%s\n' '' '' "Found the following system packages which map from $PRETTY_NAME to Rocky Linux 8:"
-    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(for p in "${!pkg_map[@]}"; do
-	printf '%s\t%s\n' "${pkg_map[$p]}" "$p"
-	done)
+    printf '%s\n' '' '' \
+"Found the following system packages which map from $PRETTY_NAME to Rocky "\
+"Linux 8:"
+    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(
+	for p in "${!pkg_map[@]}"; do
+	    printf '%s\t%s\n' "${pkg_map[$p]}" "$p"
+	done
+    )
 
     infomsg $'\n'"Getting list of installed system packages."$'\n'
 
-    readarray -t installed_packages < <(saferpm -qa --queryformat="%{NAME}\n" "${pkg_map[@]}")
+    readarray -t installed_packages < <(
+	saferpm -qa --queryformat="%{NAME}\n" "${pkg_map[@]}"
+    )
     declare -g -A installed_pkg_check installed_pkg_map
     for p in "${installed_packages[@]}"; do
 	installed_pkg_check[$p]=1
@@ -539,7 +559,9 @@ $'because continuing with the migration could cause further damage to system.'
  	fi
     done;
 
-    printf '%s\n' '' "We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 equivalents"
+    printf '%s\n' '' \
+"We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 "\
+"equivalents"
     column -t -s $'\t' -N "Packages to be Removed,Packages to be Installed" < <(
 	for p in "${!installed_pkg_map[@]}"; do
 	    printf '%s\t%s\n' "${installed_pkg_map[$p]}" "$p"
@@ -547,7 +569,8 @@ $'because continuing with the migration could cause further damage to system.'
     )
 
     if (( ${#addl_pkg_removes[@]} )); then
-	printf '%s\n' '' "In addition to the above the following system packages will be removed:" \
+	printf '%s\n' '' \
+"In addition to the above the following system packages will be removed:" \
 	    "${addl_pkg_removes[@]}"
     fi
 
@@ -606,7 +629,9 @@ $'because continuing with the migration could cause further damage to system.'
 	"${enabled_modules[@]}" ''
 
     if (( ${#managed_repos[@]} )); then
-	printf '%s\n' '' "In addition, since this system uses subscription-manger the following managed repos will be disabled:" \
+	printf '%s\n' '' \
+'In addition, since this system uses subscription-manager the following '\
+'managed repos will be disabled:' \
 	    "${managed_repos[@]}"
     fi
 }
@@ -628,11 +653,15 @@ usage() {
 } >&2
 
 generate_rpm_info() {
-  mkdir /root/convert
-  infomsg  "Creating a list of RPMs installed: $1"$'\n'
-  rpm -qa --qf "%{NAME}|%{VERSION}|%{RELEASE}|%{INSTALLTIME}|%{VENDOR}|%{BUILDTIME}|%{BUILDHOST}|%{SOURCERPM}|%{LICENSE}|%{PACKAGER}\n" | sort > "${convert_info_dir}/$HOSTNAME-rpm-list-$1.log"
-  infomsg "Verifying RPMs installed against RPM database: $1"$'\n\n'
-  rpm -Va | sort -k3 > "${convert_info_dir}/$HOSTNAME-rpm-list-verified-$1.log"
+    mkdir /root/convert
+    infomsg  "Creating a list of RPMs installed: $1"$'\n'
+    rpm -qa --qf \
+"%{NAME}|%{VERSION}|%{RELEASE}|%{INSTALLTIME}|%{VENDOR}|%{BUILDTIME}|"\
+"%{BUILDHOST}|%{SOURCERPM}|%{LICENSE}|%{PACKAGER}\n" |
+	sort > "${convert_info_dir}/$HOSTNAME-rpm-list-$1.log"
+    infomsg "Verifying RPMs installed against RPM database: $1"$'\n\n'
+    rpm -Va | sort -k3 > \
+	"${convert_info_dir}/$HOSTNAME-rpm-list-verified-$1.log"
 }
 
 # Run a dnf update before the actual migration.
@@ -672,7 +701,8 @@ package_swaps() {
 	exit
 EOF
 
-    # rocky-repos and rocky-gpg-keys are now installed, so we don't need the key file anymore
+    # rocky-repos and rocky-gpg-keys are now installed, so we don't need the
+    # key file anymore
     rm -rf "$gpg_tmp_dir"
 
     # We need to check to make sure that all of the original system packages
@@ -766,7 +796,8 @@ EOF
     if (( ${#managed_repos[@]} )); then
 	# Filter the managed repos for ones still in the system.
 	readarray -t managed_repos < <(
-	    safednf -q repolist "${managed_repos[@]}" | awk '$1!="repo" {print $1}'
+	    safednf -q repolist "${managed_repos[@]}" |
+	    	awk '$1!="repo" {print $1}'
 	)
 
 	if (( ${#managed_repos[@]} )); then
@@ -879,13 +910,15 @@ fix_efi () (
 
 # Download and verify the Rocky Linux package signing key
 establish_gpg_trust () {
-    # create temp dir and verify it is really created and empty, so we are sure deleting it afterwards won't cause any harm
+    # create temp dir and verify it is really created and empty, so we are sure
+    # deleting it afterwards won't cause any harm
     declare -g gpg_tmp_dir
     gpg_tmp_dir=$tmp_dir/gpg
     if ! mkdir "$gpg_tmp_dir" || [[ ! -d "$gpg_tmp_dir" ]]; then
 	exit_message "Error creating temp dir"
     fi
-    # failglob makes pathname expansion fail if empty, dotglob adds files starting with . to pathname expansion
+    # failglob makes pathname expansion fail if empty, dotglob adds files
+    # starting with . to pathname expansion
     if ( shopt -s failglob dotglob; : "$gpg_tmp_dir"/* ) 2>/dev/null ; then
 	exit_message "Temp dir not empty"
     fi
