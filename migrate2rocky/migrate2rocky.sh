@@ -572,16 +572,16 @@ $'because continuing with the migration could cause further damage to system.'
     installed_sys_stream_repos_pkgs=()
     installed_stream_repos_pkgs=()
     for p in "${!stream_repos_pkgs[@]}"; do
-	if [[ ${installed_pkg_map[$p]} &&
-	      ${installed_pkg_map[$p]} == "${stream_repos_pkgs[$p]}" ]]
-	then
-	    # System package that needs to be swapped / disabled
-	    installed_pkg_map[$p]=
-	    installed_sys_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
-	elif rpm --quiet -q "${stream_repos_pkgs[$p]}"; then
-	    # Non-system package, repos just need to be disabled.
-	    installed_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
-	fi
+        if [[ ${installed_pkg_map[$p]} &&
+              ${installed_pkg_map[$p]} == "${stream_repos_pkgs[$p]}" ]]
+        then
+            # System package that needs to be swapped / disabled
+            installed_pkg_map[$p]=
+            installed_sys_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+        elif rpm --quiet -q "${stream_repos_pkgs[$p]}"; then
+            # Non-system package, repos just need to be disabled.
+            installed_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+        fi
     done
 
     printf '%s\n' '' \
@@ -594,18 +594,18 @@ $'because continuing with the migration could cause further damage to system.'
     )
 
     if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
-	printf '%s\n' '' \
+        printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the following packages will be '\
 'removed from the rpm database but the included repos will be renamed and '\
 'retained but disabled:' \
-	    "${installed_sys_stream_repos_pkgs[@]}"
+            "${installed_sys_stream_repos_pkgs[@]}"
     fi
 
     if (( ${#installed_stream_repos_pkgs[@]} )); then
-	printf '%s\n' '' \
+        printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the repos included in the '\
 'following packages will be renamed and retained but disabled:' \
-	    "${installed_stream_repos_pkgs[@]}"
+            "${installed_stream_repos_pkgs[@]}"
     fi
 
     if (( ${#addl_pkg_removes[@]} )); then
@@ -732,21 +732,21 @@ package_swaps() {
 
     # CentOS Stream specific processing
     if (( ${#installed_stream_repos_pkgs[@]} )); then
-	# Get a list of the repo files.
-	local -a repos_files
-	readarray -t repos_files < <(
-	    saferpm -ql "${installed_sys_stream_repos_pkgs[@]}" \
-		"${installed_stream_repos_pkgs[@]}" |
-	    grep '^/etc/yum\.repos\.d/.\+\.repo$'
-	)
+        # Get a list of the repo files.
+        local -a repos_files
+        readarray -t repos_files < <(
+            saferpm -ql "${installed_sys_stream_repos_pkgs[@]}" \
+                "${installed_stream_repos_pkgs[@]}" |
+            grep '^/etc/yum\.repos\.d/.\+\.repo$'
+        )
 
-	# Remove the package from the rpm db.
-	saferpm -e --justdb --nodeps -a "${installed_sys_stream_repos_pkgs[@]}" ||
-	    exit_message \
+        # Remove the package from the rpm db.
+        saferpm -e --justdb --nodeps -a "${installed_sys_stream_repos_pkgs[@]}" ||
+            exit_message \
 "Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[@]}"
 
-	# Rename the stream repos with a prefix.
-	sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
+        # Rename the stream repos with a prefix.
+        sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
     fi
 
     # Use dnf shell to swap the system packages out.
@@ -888,14 +888,14 @@ EOF
 
     # Disable Stream repos.
     if (( ${#installed_sys_stream_repos_pkgs[@]} ||
-	  ${#installed_stream_repos_pkgs[@]} )); then
-	dnf -y --enableplugin=config_manager config-manager --set-disabled \
-	    "$stream_prefix*" ||
-	    errmsg \
+          ${#installed_stream_repos_pkgs[@]} )); then
+        dnf -y --enableplugin=config_manager config-manager --set-disabled \
+            "$stream_prefix*" ||
+            errmsg \
 $'Failed to disable CentOS Stream repos, please check and disable manually.\n'
 
-	infomsg $'\nCentOS Stream Migration Notes:\n\n'
-	cat <<EOF
+        infomsg $'\nCentOS Stream Migration Notes:\n\n'
+        cat <<EOF
 Because CentOS Stream leads RockyLinux by the next point release many packages
 in Stream will have higher version numbers than those in RockyLinux, some will
 even be rebased to a new upstream version.  Downgrading these packages to the
