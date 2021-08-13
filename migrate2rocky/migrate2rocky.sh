@@ -713,9 +713,9 @@ package_swaps() {
 	)
 
 	# Remove the package from the rpm db.
-	saferpm -e --justdb --nodeps -a "${installed_stream_repos_pkgs[@]}" ||
+	saferpm -e --justdb --nodeps -a "${installed_sys_stream_repos_pkgs[@]}" ||
 	    exit_message \
-"Could not remove packages from the rpm db: ${installed_stream_repos_pkgs[@]}"
+"Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[@]}"
 
 	# Rename the stream repos with a prefix.
 	sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
