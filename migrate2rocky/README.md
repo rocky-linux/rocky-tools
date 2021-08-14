@@ -57,7 +57,7 @@ dnf command or the migration.  You may safely ignore this message.
 #### Grub still shows kernel entries from previous installation
 
 This is normal.  The running kernel cannot be safely removed when migrate2rocky
-is run.  The RockyLinux kernel should come up as the default highlighed kernel
+is run.  The RockyLinux kernel should come up as the default highlighted kernel
 on reboot but the other ones will remain until they are removed or replaced by
 newer kernels.  If you want you can manually remove the old kernels after reboot
 with dnf or rpm.
