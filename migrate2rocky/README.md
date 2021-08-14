@@ -83,6 +83,18 @@ fix this issue run the following command after migration:
 ipa-server-upgrade --skip-version-check
 ```
 
+#### CentOS SIG repositories disappear after migrating to RockyLinux.
+
+This is because the centos-release-* packages that contain the .repo files for
+the individual repositories depend on centos-release.  Storage sig and related
+release packages should be available soon from RockyLinux.  In the meantine you
+can use a command like the following to install the .repo files and continue to
+use the repository from CentOS (note please substitute the URL to the release
+package for the repo that you need):
+```
+rpm2cpio <(curl http://mirror.centos.org/centos/8/extras/x86_64/os/Packages/centos-release-gluster9-1.0-1.el8.noarch.rpm) | cpio -iD/ \*.repo
+```
+
 ### Latest Version
 
 The latest version of this script can be found [here](https://github.com/rocky-linux/rocky-tools/).
