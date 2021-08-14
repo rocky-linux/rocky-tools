@@ -82,6 +82,9 @@ fix this issue run the following command after migration:
 ```
 ipa-server-upgrade --skip-version-check
 ```
+> Note: Since ipa-server-upgrade is a java program you will likely have to run
+> the command to mitigate the "Symbolic links to Java programs..." issue above
+> before running this command.
 
 #### CentOS SIG repositories disappear after migrating to RockyLinux.
 
