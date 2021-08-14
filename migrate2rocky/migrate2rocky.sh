@@ -355,7 +355,7 @@ provides_pkg () (
 )
 
 # If you pass an empty arg as one of the package specs to rpm it will match
-# every package on the system.  This funtion simply strips out any empty args
+# every package on the system.  This function simply strips out any empty args
 # and passes the rest to rpm to avoid this side-effect.
 saferpm () (
     args=()
@@ -617,7 +617,7 @@ $'because continuing with the migration could cause further damage to system.'
     # Release packages that are part of SIG's should be listed below when they
     # are available.
     # UPDATE: We may or may not do something with SIG's here, it could just be
-    # left as a separate excercise to swap out the sig repos.
+    # left as a separate exercise to swap out the sig repos.
     #sigs_to_swap=()
 
     infomsg '%s' $'\n' \
