@@ -270,7 +270,7 @@ bin_check() {
 repoquery () {
     local name val prev result
     result=$(
-        dnf -q --setopt=epel.excludepkgs=epel-release repoquery -i "$1" ||
+        dnf -y -q --setopt=epel.excludepkgs=epel-release repoquery -i "$1" ||
             exit_message "Failed to fetch info for package $1."
     )
     if ! [[ $result ]]; then
@@ -292,7 +292,7 @@ repoquery () {
 # info for the resulting repository.
 repoinfo () {
     local name val result
-    result=$(dnf -q repoinfo "$1") ||
+    result=$(dnf -y -q repoinfo "$1") ||
             exit_message "Failed to fetch info for repository $1."
     if [[ $result == 'Total packages: 0' ]]; then
         # We didn't match this repo.
@@ -346,11 +346,11 @@ provides_pkg () (
     fi
 
     set -o pipefail
-    provides=$(dnf -q provides "$1" | awk '{print $1; nextfile}') ||
+    provides=$(dnf -y -q provides "$1" | awk '{print $1; nextfile}') ||
         return 1
     set +o pipefail
     pkg=$(rpm -q --queryformat '%{NAME}\n' "$provides") ||
-            pkg=$(dnf -q repoquery --queryformat '%{NAME}\n' "$provides") ||
+            pkg=$(dnf -y -q repoquery --queryformat '%{NAME}\n' "$provides") ||
             exit_message "Can't get package name for $provides."
     printf '%s\n' "$pkg"
 )
@@ -627,7 +627,7 @@ $'because continuing with the migration could cause further damage to system.'
     # Get a list of system enabled modules.
     readarray -t enabled_modules < <(
         set -e -o pipefail
-        safednf -q "${repo_map[@]/#/--repo=}" module list --enabled |
+        safednf -y -q "${repo_map[@]/#/--repo=}" module list --enabled |
         awk '
             $1 == "@modulefailsafe", /^$/ {next}
             $1 == "Name", /^$/ {if ($1!="Name" && !/^$/) print $1":"$2}
@@ -856,7 +856,7 @@ EOF
     if (( ${#managed_repos[@]} )); then
         # Filter the managed repos for ones still in the system.
         readarray -t managed_repos < <(
-            safednf -q repolist "${managed_repos[@]}" |
+            safednf -y -q repolist "${managed_repos[@]}" |
                     awk '$1!="repo" {print $1}'
         )
 
