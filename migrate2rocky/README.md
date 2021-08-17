@@ -71,7 +71,7 @@ dnf command or the migration.  You may safely ignore this message.
 #### Grub still shows kernel entries from previous installation
 
 This is normal.  The running kernel cannot be safely removed when migrate2rocky
-is run.  The RockyLinux kernel should come up as the default highlighed kernel
+is run.  The RockyLinux kernel should come up as the default highlighted kernel
 on reboot but the other ones will remain until they are removed or replaced by
 newer kernels.  If you want you can manually remove the old kernels after reboot
 with dnf or rpm.
@@ -95,6 +95,21 @@ trick ipa into thinking that the package was downgraded even if it was not.  To
 fix this issue run the following command after migration:
 ```
 ipa-server-upgrade --skip-version-check
+```
+> Note: Since ipa-server-upgrade is a java program you will likely have to run
+> the command to mitigate the "Symbolic links to Java programs..." issue above
+> before running this command.
+
+#### CentOS SIG repositories disappear after migrating to RockyLinux.
+
+This is because the centos-release-* packages that contain the .repo files for
+the individual repositories depend on centos-release.  Storage sig and related
+release packages should be available soon from RockyLinux.  In the meantine you
+can use a command like the following to install the .repo files and continue to
+use the repository from CentOS (note please substitute the URL to the release
+package for the repo that you need):
+```
+rpm2cpio <(curl http://mirror.centos.org/centos/8/extras/x86_64/os/Packages/centos-release-gluster9-1.0-1.el8.noarch.rpm) | cpio -iD/ \*.repo
 ```
 
 ### Latest Version
