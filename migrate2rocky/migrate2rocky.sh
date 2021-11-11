@@ -732,7 +732,8 @@ package_swaps() {
     done
 
     # CentOS Stream specific processing
-    if (( ${#installed_stream_repos_pkgs[@]} )); then
+    if (( ${#installed_stream_repos_pkgs[@]} ||
+          ${#installed_sys_stream_repos_pkgs[@]} )); then
         # Get a list of the repo files.
         local -a repos_files
         readarray -t repos_files < <(
@@ -741,10 +742,13 @@ package_swaps() {
             grep '^/etc/yum\.repos\.d/.\+\.repo$'
         )
 
-        # Remove the package from the rpm db.
-        saferpm -e --justdb --nodeps -a "${installed_sys_stream_repos_pkgs[@]}" ||
+	if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
+            # Remove the package from the rpm db.
+            saferpm -e --justdb --nodeps -a \
+                "${installed_sys_stream_repos_pkgs[@]}" ||
             exit_message \
 "Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[@]}"
+	fi
 
         # Rename the stream repos with a prefix.
         sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
