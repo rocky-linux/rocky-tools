@@ -838,7 +838,7 @@ EOF
 
     # Distrosync
     infomsg $'Ensuring repos are enabled before the package swap\n'
-    safednf -y --enableplugin=config-manager config-manager \
+    safednf -y --enableplugin=config_manager config-manager \
         --set-enabled "${!repo_map[@]}" || {
         printf '%s\n' 'Repo name missing?'
         exit 25
@@ -853,7 +853,7 @@ EOF
 
         if (( ${#managed_repos[@]} )); then
             infomsg $'\nDisabling subscription managed repos\n'
-            safednf -y --enableplugin=config-manager config-manager \
+            safednf -y --enableplugin=config_manager config-manager \
                 --disable "${managed_repos[@]}"
         fi
     fi
