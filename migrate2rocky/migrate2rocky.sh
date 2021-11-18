@@ -114,18 +114,14 @@ SUPPORTED_MAJOR="8"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
 ARCH=$(arch)
 
-gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-rockyofficial"
+rocky_repo_base_url='https://dl.rockylinux.org/pub/rocky'
+rocky_repo_base_url_repofiles='http://dl.rockylinux.org/$contentdir'
+repo_mirror_file_prefix="user-"
+repo_mirror_name_sufix=" - UserDefined"
 gpg_key_sha512="88fe66cf0a68648c2371120d56eb509835266d9efdf7c8b9ac8fc101bdf1f0e0197030d3ea65f4b5be89dc9d1ef08581adb068815c88d7b1dc40aa1c32990f6a"
 
 sm_ca_dir=/etc/rhsm/ca
 unset tmp_sm_ca_dir
-
-# all repos must be signed with the same key given in $gpg_key_url
-declare -A repo_urls
-repo_urls=(
-    [rockybaseos]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
-    [rockyappstream]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
-)
 
 # The repos package for CentOS stream requires special handling.
 declare -g -A stream_repos_pkgs
@@ -212,6 +208,70 @@ pre_check () {
         exit_message \
 'Migration from Uyuni/SUSE Manager-modified systems is not supported by '\
 'migrate2rocky. See the README file for details.'
+    fi
+}
+
+# Set the repository urls for inital pkg swap step, so you can migrate from
+# private mirror without internet connection
+set_repo_urls () {
+    if [ $use_repo_mirror ]; then
+        # remove / at the end of URL string
+        repo_base_url=$(echo $repo_base_url | sed 's/\/$//')
+        infomsg '%s' "Repo Base URL is set to $repo_base_url"
+    else
+        declare -g repo_base_url
+        repo_base_url="$rocky_repo_base_url"
+    fi
+
+    declare -g gpg_key_url
+    gpg_key_url="${repo_base_url}/RPM-GPG-KEY-rockyofficial"
+
+    # all repos must be signed with the same key given in $gpg_key_url
+    declare -g -A repo_urls
+    repo_urls=(
+        [rockybaseos]="${repo_base_url}/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
+        [rockyappstream]="${repo_base_url}/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
+    )
+}
+
+# Create repository files for internal mirror and disable public repos, so you
+# can migrate from private mirror without internet connection
+create_repo_files () {
+    if [ $use_repo_mirror ]; then
+        # collect enabled repo files from Rocky
+        local repo_files_enabled repofile_mirror
+        local repofile_mirror
+        repo_files_enabled=$(grep -l "enabled.*=.*1" /etc/yum.repos.d/Rocky-*)
+
+        infomsg $'\nDisable public repos\n'
+        for repofile in $repo_files_enabled; do
+            # disable public repos
+            sed -i 's/^enabled.*=.*1/enabled=0/' "$repofile"
+        done
+
+        infomsg $'Disable old internal repo mirror\n'
+        for r in "${!repo_map[@]}"; do
+            repoinfo "${repo_map[$r]}"
+            rm -f "${repoinfo_results[Repo-filename]}" || exit_message "Could not disable repo ${repo_map[$r]} in repo file ${repoinfo_results[Repo-filename]}."
+        done
+
+        infomsg $'Create repository files for internal mirror\n'
+        for repofile in $repo_files_enabled; do
+            repofile_mirror=${repofile//Rocky-/${repo_mirror_file_prefix}Rocky-}
+            printf '%s\n' "$repofile_mirror"
+            # copy repo file
+            cp -f "$repofile" "$repofile_mirror" || exit_message "Could not copy repofile $repofile to $repofile_mirror ."
+
+            # disable public repos
+
+            # change settings for internal repo mirror
+            sed -i '/^mirrorlist.*/d' "$repofile_mirror"
+            sed -i "s/^\[\(.*\)\]/\[${repo_mirror_file_prefix}\1\]/" "$repofile_mirror"
+            sed -i "s/\(^name.*=.*\)/\1${repo_mirror_name_sufix}/" "$repofile_mirror"
+            sed -i "s|^#baseurl.*=.*${rocky_repo_base_url_repofiles}|baseurl=${repo_base_url}|" "$repofile_mirror"
+            sed -i 's/^enabled.*=.*0/enabled=1/' "$repofile_mirror"
+            sed -i '/^\#.*/d' "$repofile_mirror"
+        done
     fi
 }
 
@@ -486,8 +546,13 @@ collect_system_info () {
         repoinfo "${repo_map[$r]}"
         if [[ $r == "baseos" ]]; then
             local baseos_filename=system-release
+            if [ $use_repo_mirror ]; then
+                # use repoinfo of default repo baseos not of internal repo mirror,
+                # to get the correct repo package to remove
+                repoinfo "baseos"
+            fi
             if [[ ! ${repoinfo_results[Repo-managed]} ]]; then
-                baseos_filename="${repoinfo_results[Repo-filename]}"
+            baseos_filename="${repoinfo_results[Repo-filename]}"
             fi
             local baseos_gpgkey="${repoinfo_results[Repo-gpgkey]}"
         fi
@@ -680,6 +745,11 @@ usage() {
       '-h Display this help' \
       '-r Convert to rocky' \
       '-V Verify switch' \
+      '-m Set base URL for internal repo mirror' \
+      '-f Only if mirror URL is set,' \
+      '   set prefix for mirror repo file and repo ID (default=user-)' \
+      '-n Only if mirror URL is set,' \
+      '   set sufix for mirror repo name (default= - UserDefined)' \
       '   !! USE WITH CAUTION !!'
   exit 1
 } >&2
@@ -755,6 +825,9 @@ EOF
     # rocky-repos and rocky-gpg-keys are now installed, so we don't need the
     # key file anymore
     rm -rf "$gpg_tmp_dir"
+
+    # when you want to migrate with internal mirror repo server, we create repo files
+    create_repo_files
 
     # We need to check to make sure that all of the original system packages
     # have been removed and all of the new ones have been added. If a package
@@ -837,12 +910,14 @@ EOF
     fi
 
     # Distrosync
-    infomsg $'Ensuring repos are enabled before the package swap\n'
-    safednf -y --enableplugin=config-manager config-manager \
-        --set-enabled "${!repo_map[@]}" || {
-        printf '%s\n' 'Repo name missing?'
-        exit 25
-    }
+    if [ -z $use_repo_mirror ]; then
+        infomsg $'Ensuring repos are enabled before the package swap\n'
+        safednf -y --enableplugin=config-manager config-manager \
+            --set-enabled "${!repo_map[@]}" || {
+            printf '%s\n' 'Repo name missing?'
+            exit 25
+        }
+    fi
 
     if (( ${#managed_repos[@]} )); then
         # Filter the managed repos for ones still in the system.
@@ -1021,7 +1096,7 @@ establish_gpg_trust () {
 ## End actual work
 
 noopts=0
-while getopts "hrVR" option; do
+while getopts "hrVRm:f:n:" option; do
   (( noopts++ ))
   case "$option" in
     h)
@@ -1032,6 +1107,16 @@ while getopts "hrVR" option; do
       ;;
     V)
       verify_all_rpms=true
+      ;;
+    m)
+      repo_base_url="${OPTARG}"
+      use_repo_mirror=true
+      ;;
+    f)
+      repo_mirror_file_prefix="${OPTARG}"
+      ;;
+    n)
+      repo_mirror_name_sufix="${OPTARG}"
       ;;
     *)
       errmsg $'Invalid switch\n'
@@ -1046,6 +1131,7 @@ fi
 pre_setup
 trap exit_clean EXIT
 pre_check
+set_repo_urls
 efi_check
 bin_check
 

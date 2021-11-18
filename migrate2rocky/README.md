@@ -9,9 +9,23 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 ./migrate2rocky.sh -h
 ├── -h   # --> Display this help
 ├── -r   # --> Convert to Rocky
-└── -V   # --> Verify switch
+├── -V   # --> Verify switch
+├── -m   # --> Set base URL for internal repo mirror
+├── -f   # --> Only if mirror URL is set,
+         #     set prefix for mirror repo file and repo ID (default=user-)
+└── -n   # --> Only if mirror URL is set,
+         #     set sufix for mirror repo name (default= - UserDefined)
 
 [!! USE WITH CAUTION !!]
+```
+
+### Examples
+
+```bash
+./migrate2rocky.sh -r
+
+# Migrate with internal mirror repository
+./migrate2rocky.sh -r -m "http://repo.example.org/rocky" -f "example-" -n " - Example"
 ```
 
 ### Known Issues
