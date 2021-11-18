@@ -741,8 +741,12 @@ package_swaps() {
 "Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[@]}"
 	fi
 
-        # Rename the stream repos with a prefix.
-        sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
+        # Rename the stream repos with a prefix and fix the baseurl.
+        sed -i \
+            -e 's/^\[/['"$stream_prefix"'/' \
+            -e 's|^mirrorlist=|#mirrorlist=|g' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=|http://mirror.centos.org/centos/8-stream/' \
+	    "${repos_files[@]}"
     fi
 
     # Use dnf shell to swap the system packages out.
