@@ -230,10 +230,10 @@ bin_check() {
     local -a missing bins
     bins=(
         rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir
-        rm head curl sha512sum mktemp systemd-detect-virt sed
+        rm head curl sha512sum mktemp systemd-detect-virt sed grep
     )
     if [[ $update_efi ]]; then
-        bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil lsblk)
+        bins+=(findmnt grub2-mkconfig efibootmgr mokutil lsblk)
     fi
     for bin in "${bins[@]}"; do
         if ! type "$bin" >/dev/null 2>&1; then
