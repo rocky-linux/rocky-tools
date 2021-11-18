@@ -420,15 +420,6 @@ collect_system_info () {
         fi
     fi
 
-    # check if EFI secure boot is enabled
-    if [[ $update_efi ]]; then
-        if mokutil --sb-state 2>&1 | grep -q "SecureBoot enabled"; then
-            exit_message \
-"EFI Secure Boot is enabled but Rocky Linux doesn't provide a signed shim yet."\
-" Disable EFI Secure Boot and reboot."
-        fi
-    fi
-
     # Don't enable these module streams, even if they are enabled in the source
     # distro.
     declare -g -a module_excludes
