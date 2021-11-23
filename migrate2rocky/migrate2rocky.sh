@@ -204,11 +204,13 @@ exit_clean () {
 
 pre_check () {
     if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
+# shellcheck disable=SC2026
         exit_message \
 'Migration from Katello-modified systems is not supported by migrate2rocky. '\
 'See the README file for details.'
     fi
     if [[ -e /etc/salt/minion.d/susemanager.conf ]]; then
+# shellcheck disable=SC2026
         exit_message \
 'Migration from Uyuni/SUSE Manager-modified systems is not supported by '\
 'migrate2rocky. See the README file for details.'
@@ -222,6 +224,7 @@ pre_check () {
 bin_check() {
     # Check the platform.
     if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
+# shellcheck disable=SC2026
         exit_message \
 'This script must be run on an EL8 distribution.  Migration from other '\
 'distributions is not supported.'
@@ -230,10 +233,10 @@ bin_check() {
     local -a missing bins
     bins=(
         rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir
-        rm head curl sha512sum mktemp systemd-detect-virt sed
+        rm head curl sha512sum mktemp systemd-detect-virt sed grep
     )
     if [[ $update_efi ]]; then
-        bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil lsblk)
+        bins+=(findmnt grub2-mkconfig efibootmgr mokutil lsblk)
     fi
     for bin in "${bins[@]}"; do
         if ! type "$bin" >/dev/null 2>&1; then
@@ -258,6 +261,7 @@ bin_check() {
     done;
 
     if (( ${#missing[@]} )); then
+# shellcheck disable=SC2140
         exit_message \
 "Commands not found: ${missing[*]}.  Possible bad PATH setting or corrupt "\
 "installation."
@@ -536,6 +540,7 @@ $'because continuing with the migration could cause further damage to system.'
         addl_pkg_removes+=("$pkg")
     done
 
+# shellcheck disable=SC2140
     printf '%s\n' '' '' \
 "Found the following system packages which map from $PRETTY_NAME to Rocky "\
 "Linux 8:"
@@ -576,6 +581,7 @@ $'because continuing with the migration could cause further damage to system.'
         fi
     done
 
+# shellcheck disable=SC2140
     printf '%s\n' '' \
 "We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 "\
 "equivalents"
@@ -586,6 +592,7 @@ $'because continuing with the migration could cause further damage to system.'
     )
 
     if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
+# shellcheck disable=SC2026
         printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the following packages will be '\
 'removed from the rpm database but the included repos will be renamed and '\
@@ -594,6 +601,7 @@ $'because continuing with the migration could cause further damage to system.'
     fi
 
     if (( ${#installed_stream_repos_pkgs[@]} )); then
+# shellcheck disable=SC2026
         printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the repos included in the '\
 'following packages will be renamed and retained but disabled:' \
@@ -661,6 +669,7 @@ $'because continuing with the migration could cause further damage to system.'
         "${enabled_modules[@]}" ''
 
     if (( ${#managed_repos[@]} )); then
+# shellcheck disable=SC2026
         printf '%s\n' '' \
 'In addition, since this system uses subscription-manager the following '\
 'managed repos will be disabled:' \
@@ -687,6 +696,7 @@ usage() {
 generate_rpm_info() {
     mkdir /root/convert
     infomsg  "Creating a list of RPMs installed: $1"$'\n'
+# shellcheck disable=SC2140
     rpm -qa --qf \
 "%{NAME}|%{VERSION}|%{RELEASE}|%{INSTALLTIME}|%{VENDOR}|%{BUILDTIME}|"\
 "%{BUILDHOST}|%{SOURCERPM}|%{LICENSE}|%{PACKAGER}\n" |
@@ -738,7 +748,7 @@ package_swaps() {
             saferpm -e --justdb --nodeps -a \
                 "${installed_sys_stream_repos_pkgs[@]}" ||
             exit_message \
-"Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[@]}"
+"Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[*]}"
 	fi
 
         # Rename the stream repos with a prefix and fix the baseurl.
@@ -847,7 +857,7 @@ EOF
 
     # Distrosync
     infomsg $'Ensuring repos are enabled before the package swap\n'
-    safednf -y --enableplugin=config-manager config-manager \
+    safednf -y --enableplugin=config_manager config-manager \
         --set-enabled "${!repo_map[@]}" || {
         printf '%s\n' 'Repo name missing?'
         exit 25
@@ -862,7 +872,7 @@ EOF
 
         if (( ${#managed_repos[@]} )); then
             infomsg $'\nDisabling subscription managed repos\n'
-            safednf -y --enableplugin=config-manager config-manager \
+            safednf -y --enableplugin=config_manager config-manager \
                 --disable "${managed_repos[@]}"
         fi
     fi
