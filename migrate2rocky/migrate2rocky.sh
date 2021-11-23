@@ -763,9 +763,9 @@ package_swaps() {
         # Rename the stream repos with a prefix and fix the baseurl.
         sed -i \
             -e 's/^\[/['"$stream_prefix"'/' \
-            -e 's|^mirrorlist=|#mirrorlist=|g' \
-            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=|http://mirror.centos.org/centos/8-stream/' \
-            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=|https://vault.centos.org/centos/8-stream/' \
+            -e 's|^mirrorlist=|#mirrorlist=|' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/8-stream/|' \
+            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/8-stream/|' \
             "${repos_files[@]}"
     fi
 
