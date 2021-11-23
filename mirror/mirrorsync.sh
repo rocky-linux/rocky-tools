@@ -35,10 +35,12 @@
 # You can change v to q if you do not want detailed logging
 opts=(-vrlptDSH --exclude="*.~tmp~" --delete-delay --delay-updates)
 
-# Please use a mirror next to you for initial sync
-# or if you are hosting a private rather than a pulic mirror.
-# Local mirrors might be faster.
-# Also we might restrict access to the master in the future.
+# Please use a mirror geographically close to you for initial sync,
+# or if you are hosting a private mirror(not publicly available).
+#
+# Note that local mirrors may be faster, and we might restrict
+# access to the master in the future.
+#
 # A complete list of mirrors can be found at
 # https://mirrors.rockylinux.org/mirrormanager/mirrors/Rocky
 src="msync.rockylinux.org::rocky/mirror/pub/rocky"
