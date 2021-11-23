@@ -133,8 +133,17 @@ stream_repos_pkgs=(
     [rocky-repos]=centos-stream-repos
     [epel-release]=epel-next-release
 )
+
 # Prefix to add to CentOS stream repo names when renaming them.
 stream_prefix=stream-
+
+# Always replace these stream packages with their Rocky Linux equivalents.
+stream_always_replace=(
+    fwupdate\*
+    grub2-\*
+    kernel
+    kernel-\*
+)
 
 unset CDPATH
 
@@ -743,13 +752,13 @@ package_swaps() {
             grep '^/etc/yum\.repos\.d/.\+\.repo$'
         )
 
-	if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
+        if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
             # Remove the package from the rpm db.
             saferpm -e --justdb --nodeps -a \
                 "${installed_sys_stream_repos_pkgs[@]}" ||
             exit_message \
 "Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[*]}"
-	fi
+        fi
 
         # Rename the stream repos with a prefix and fix the baseurl.
         sed -i \
@@ -757,7 +766,7 @@ package_swaps() {
             -e 's|^mirrorlist=|#mirrorlist=|g' \
             -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=|http://mirror.centos.org/centos/8-stream/' \
             -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=|https://vault.centos.org/centos/8-stream/' \
-	    "${repos_files[@]}"
+            "${repos_files[@]}"
     fi
 
     # Use dnf shell to swap the system packages out.
@@ -904,6 +913,12 @@ EOF
             "$stream_prefix*" ||
             errmsg \
 $'Failed to disable CentOS Stream repos, please check and disable manually.\n'
+
+        if (( ${#stream_always_replace[@]} )) &&
+            [[ $(saferpm -qa "${stream_always_replace[@]}") ]]; then
+            safednf -y distro-sync "${stream_always_replace[@]}" ||
+                exit_message "Error during distro-sync."
+        fi
 
         infomsg $'\nCentOS Stream Migration Notes:\n\n'
         cat <<EOF
