@@ -55,12 +55,12 @@ lockfile="$0.lockfile"
 logfile="$0.log"
 
 # Check if the filelistfile has changed on upstream mirror
-# and exit if it is still the same
+# and exit cleanly if it is still the same
 checkresult=$(rsync --no-motd --dry-run --out-format="%n" "${src}/${filelistfile}" "${dst}/${filelistfile}")
 if [[ -z "$checkresult" ]]; then
 	printf "%s unchanged. Not updating at %(%c)T\n" "$filelistfile" -1 >> "$logfile" 2>&1
 	logger -t rsync "Not updating ${mirrormodule}: ${filelistfile} unchanged."
-	exit 1
+	exit 0
 fi
 
 # Check for existing lockfile to avoid multiple simultaneously running syncs
