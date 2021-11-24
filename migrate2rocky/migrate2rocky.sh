@@ -141,6 +141,7 @@ stream_prefix=stream-
 stream_always_replace=(
     fwupdate\*
     grub2-\*
+    shim-\*
     kernel
     kernel-\*
 )
