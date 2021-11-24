@@ -133,8 +133,18 @@ stream_repos_pkgs=(
     [rocky-repos]=centos-stream-repos
     [epel-release]=epel-next-release
 )
+
 # Prefix to add to CentOS stream repo names when renaming them.
 stream_prefix=stream-
+
+# Always replace these stream packages with their Rocky Linux equivalents.
+stream_always_replace=(
+    fwupdate\*
+    grub2-\*
+    shim-\*
+    kernel
+    kernel-\*
+)
 
 unset CDPATH
 
@@ -733,7 +743,8 @@ package_swaps() {
     done
 
     # CentOS Stream specific processing
-    if (( ${#installed_stream_repos_pkgs[@]} )); then
+    if (( ${#installed_stream_repos_pkgs[@]} ||
+          ${#installed_sys_stream_repos_pkgs[@]} )); then
         # Get a list of the repo files.
         local -a repos_files
         readarray -t repos_files < <(
@@ -742,13 +753,21 @@ package_swaps() {
             grep '^/etc/yum\.repos\.d/.\+\.repo$'
         )
 
-        # Remove the package from the rpm db.
-        saferpm -e --justdb --nodeps -a "${installed_sys_stream_repos_pkgs[@]}" ||
+        if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
+            # Remove the package from the rpm db.
+            saferpm -e --justdb --nodeps -a \
+                "${installed_sys_stream_repos_pkgs[@]}" ||
             exit_message \
 "Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[*]}"
+        fi
 
-        # Rename the stream repos with a prefix.
-        sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
+        # Rename the stream repos with a prefix and fix the baseurl.
+        sed -i \
+            -e 's/^\[/['"$stream_prefix"'/' \
+            -e 's|^mirrorlist=|#mirrorlist=|' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/8-stream/|' \
+            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/8-stream/|' \
+            "${repos_files[@]}"
     fi
 
     # Use dnf shell to swap the system packages out.
@@ -895,6 +914,12 @@ EOF
             "$stream_prefix*" ||
             errmsg \
 $'Failed to disable CentOS Stream repos, please check and disable manually.\n'
+
+        if (( ${#stream_always_replace[@]} )) &&
+            [[ $(saferpm -qa "${stream_always_replace[@]}") ]]; then
+            safednf -y distro-sync "${stream_always_replace[@]}" ||
+                exit_message "Error during distro-sync."
+        fi
 
         infomsg $'\nCentOS Stream Migration Notes:\n\n'
         cat <<EOF
