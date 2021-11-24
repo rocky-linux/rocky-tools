@@ -127,6 +127,10 @@ repo_urls=(
     [rockyappstream]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
 )
 
+# These are additional packages that should always be installed.
+# (currently blank, but we add to it for an EFI boot system).
+always_install=()
+
 # The repos package for CentOS stream requires special handling.
 declare -g -A stream_repos_pkgs
 stream_repos_pkgs=(
@@ -432,6 +436,13 @@ collect_system_info () {
             done
             cd -
         fi
+
+        # We need to make sure that these packages are always installed in an
+        # EFI system.
+        always_install+=(
+            shim-x64
+            grub2-efi-x64
+        )
     fi
 
     # Don't enable these module streams, even if they are enabled in the source
@@ -962,6 +973,12 @@ Subscription Management. If no longer desired, you can use
 behavior.
 EOF
     fi
+
+    if (( ${#always_install[@]} )); then
+        safednf -y install "${always_install[@]}" || exit_message \
+            "Error installing required packages: ${always_install[*]}"
+    fi
+
     if [[ $tmp_sm_ca_dir ]]; then
         # Check to see if there's Subscription Manager certs which have been
         # removed
@@ -1019,7 +1036,7 @@ fix_efi () (
             exit_message "Error updating the grub config."
     for i in "${!efi_disk[@]}"; do
         efibootmgr -c -d "/dev/${efi_disk[$i]}" -p "${efi_partition[$i]}" \
-            -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
+            -L "Rocky Linux" -l /EFI/rocky/shimx64.efi ||
             exit_message "Error updating uEFI firmware."
     done
 )
