@@ -31,8 +31,15 @@
 # SOFTWARE.
 #
 
-# Find rsync in path or use "/usr/bin/rsync".
-rsync=$(which rsync || /usr/bin/rsync)
+# Find rsync in default path
+rsync_run(){
+	if command -v rsync >/dev/null; then
+		command rsync "$@";
+	else
+		command -p rsync "$@";
+	fi;
+}
+
 # You can change v to q if you do not want detailed logging
 opts=(-vrlptDSH --exclude="*.~tmp~" --delete-delay --delay-updates)
 
@@ -57,7 +64,7 @@ logfile="$0.log"
 
 # Check if the filelistfile has changed on upstream mirror
 # and exit cleanly if it is still the same
-checkresult=$(${rsync} --no-motd --dry-run --out-format="%n" "${src}/${filelistfile}" "${dst}/${filelistfile}")
+checkresult=$(rsync_run --no-motd --dry-run --out-format="%n" "${src}/${filelistfile}" "${dst}/${filelistfile}")
 if [[ -z "$checkresult" ]]; then
 	printf "%s unchanged. Not updating at %(%c)T\n" "$filelistfile" -1 >> "$logfile" 2>&1
 	logger -t rsync "Not updating ${mirrormodule}: ${filelistfile} unchanged."
@@ -80,7 +87,7 @@ fi
 printf '%s\n' "$$" > "$lockfile"
 printf "Started update at %(%c)T\n" -1 >> "$logfile" 2>&1
 logger -t rsync "Updating ${mirrormodule}"
-${rsync} "${opts[@]}" "${src}/" "${dst}/" >> "$logfile" 2>&1
+rsync_run "${opts[@]}" "${src}/" "${dst}/" >> "$logfile" 2>&1
 logger -t rsync "Finished updating ${mirrormodule}"  
 printf "End: %(%c)T\n" -1 >> "$logfile" 2>&1
 rm -f "$lockfile"
