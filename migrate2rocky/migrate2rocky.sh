@@ -55,6 +55,13 @@ fi
 # Path to logfile
 logfile=/var/log/migrate2rocky.log
 
+# add runtime marker to logfile so that multiple runs of migrate2rocky can be distinguished
+echo "" >>"$logfile"
+echo "------------------------------------------------------------------------------------" >>"$logfile"
+date >>"$logfile"
+echo "------------------------------------------------------------------------------------" >>"$logfile"
+echo "" >>"$logfile"
+
 # Send all output to the logfile as well as stdout.
 # After the following we get:
 # Output to 1 goes to stdout and the logfile.
@@ -62,7 +69,6 @@ logfile=/var/log/migrate2rocky.log
 # Output to 3 just goes to stdout.
 # Output to 4 just goes to stderr.
 # Output to 5 just goes to the logfile.
-truncate -s0 "$logfile"
 # shellcheck disable=SC2094
 exec \
     3>&1 \
