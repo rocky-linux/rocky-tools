@@ -14,6 +14,18 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 [!! USE WITH CAUTION !!]
 ```
 
+### Disk Space Requirements
+
+Please note the following disk space requirements.  These requirements may vary
+from one system to another.  Failure to have adequate disk space available may
+result in migrate2rocky leaving the system in an unstable state:
+
+```
+/usr   250M
+/var   1.5G
+/boot  50M
+```
+
 ### Known Issues
 
 #### Custom replacements of default repositories
