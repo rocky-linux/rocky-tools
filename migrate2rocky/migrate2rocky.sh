@@ -150,6 +150,14 @@ stream_always_replace=(
     kernel-\*
 )
 
+# Directory to required space in MiB
+declare -A dir_space_map
+dir_space_map=(
+    [/usr]=250
+    [/var]=1536
+    [/boot]=50
+)
+
 unset CDPATH
 
 exit_message() {
@@ -229,6 +237,38 @@ pre_check () {
 'Migration from Uyuni/SUSE Manager-modified systems is not supported by '\
 'migrate2rocky. See the README file for details.'
     fi
+
+    # Get available space to compare to requirements.
+    # If the stock kernel is not installed we don't require space in /boot
+    if ! rpm -q --quiet kernel; then 
+	dir_space_map[/boot]=0
+    fi
+    local -a errs dirs=("${!dir_space_map[@]}")
+    local dir mount avail i=0
+    local -A mount_avail_map dir_mount_map mount_space_map
+    while read -r mount avail; do 
+	if [[ $mount == 'Filesystem' ]]; then
+	    continue
+	fi
+
+	dir=${dirs[$((i++))]}
+
+	dir_mount_map[$dir]=$mount
+	mount_avail_map[$mount]=${avail%M}
+	(( mount_space_map[$mount]+=${dir_space_map[$dir]} ))
+    done < <(df -BM --output=source,avail "${dirs[@]}")
+
+    for mount in "${!mount_space_map[@]}"; do
+	(( avail = mount_avail_map[$mount]*0.95 ))
+	if (( avail < mount_space_map[$mount] )); then
+	    errs+=("Not enough space in $mount, $mount_space_map[$mount]M required, ${avail}M available.")
+	fi
+    done
+
+    if (( ${#errs[@]} )); then
+	IFS=$'\n'
+	exit_message "${errs[*]}"
+    fi
 }
 
 # All of the binaries used by this script are available in a EL8 minimal install
@@ -246,7 +286,7 @@ bin_check() {
 
     local -a missing bins
     bins=(
-        rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir
+        rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir df
         rm head curl sha512sum mktemp systemd-detect-virt sed grep
     )
     if [[ $update_efi ]]; then
