@@ -255,11 +255,11 @@ pre_check () {
 
 	dir_mount_map[$dir]=$mount
 	mount_avail_map[$mount]=${avail%M}
-	(( mount_space_map[$mount]+=${dir_space_map[$dir]} ))
+	(( mount_space_map[$mount]+=dir_space_map[$dir] ))
     done < <(df -BM --output=source,avail "${dirs[@]}")
 
     for mount in "${!mount_space_map[@]}"; do
-	(( avail = mount_avail_map[$mount]*0.95 ))
+	(( avail = mount_avail_map[$mount]*95/100 ))
 	if (( avail < mount_space_map[$mount] )); then
 	    errs+=("Not enough space in $mount, $mount_space_map[$mount]M required, ${avail}M available.")
 	fi
