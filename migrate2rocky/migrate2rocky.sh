@@ -55,6 +55,26 @@ fi
 # Path to logfile
 logfile=/var/log/migrate2rocky.log
 
+# Rotate old logs
+numlogs=5
+if [[ -e $logfile ]]; then
+    # Here we use mv before bin_check, so simply check the exit status to see if
+    # it worked.
+    if ! mv -f "$logfile" "$logfile.0"; then
+        printf '%s\n' "Unable to rotate logfiles, continuing without rotation." >&2
+    else
+        for ((i=numlogs;i>0;i--)); do
+            if [[ -e "$logfile.$((i-1))" ]]; then
+                if ! mv -f "$logfile.$((i-1))" "$logfile.$i"; then
+                    printf '%s\n' \
+"Unable to rotate logfiles, continuing without rotation."
+                    break
+                fi
+            fi
+        done
+    fi
+fi
+
 # Send all output to the logfile as well as stdout.
 # After the following we get:
 # Output to 1 goes to stdout and the logfile.
@@ -62,7 +82,7 @@ logfile=/var/log/migrate2rocky.log
 # Output to 3 just goes to stdout.
 # Output to 4 just goes to stderr.
 # Output to 5 just goes to the logfile.
-truncate -s0 "$logfile"
+
 # shellcheck disable=SC2094
 exec \
     3>&1 \
@@ -105,6 +125,8 @@ errmsg () {
     printf '%s' "$msg" >&5
     printf '%s%s%s' "$errcolor" "$msg" "$nocolor" >&4
 }
+
+infomsg 'migrate2rocky - Begin logging at %(%c)T.\n\n' -1
 
 export LC_ALL=C.UTF-8
 unset LANGUAGE
