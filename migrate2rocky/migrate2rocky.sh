@@ -283,7 +283,7 @@ pre_check () {
     for mount in "${!mount_space_map[@]}"; do
 	(( avail = mount_avail_map[$mount]*95/100 ))
 	if (( avail < mount_space_map[$mount] )); then
-	    errs+=("Not enough space in $mount, $mount_space_map[$mount]M required, ${avail}M available.")
+	    errs+=("Not enough space in $mount, ${mount_space_map[$mount]}M required, ${avail}M available.")
 	fi
     done
 
