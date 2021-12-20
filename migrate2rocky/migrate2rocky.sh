@@ -1106,7 +1106,7 @@ fix_efi () (
             exit_message "Error updating the grub config."
     for i in "${!efi_disk[@]}"; do
         efibootmgr -c -d "/dev/${efi_disk[$i]}" -p "${efi_partition[$i]}" \
-            -L "Rocky Linux" -l /EFI/rocky/shim${cpu_arch_suffix_map[$ARCH]}.efi ||
+            -L "Rocky Linux" -l "/EFI/rocky/shim${cpu_arch_suffix_map[$ARCH]}.efi" ||
             exit_message "Error updating uEFI firmware."
     done
 )
