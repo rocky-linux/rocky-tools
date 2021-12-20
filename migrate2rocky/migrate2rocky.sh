@@ -160,6 +160,14 @@ stream_repos_pkgs=(
     [epel-release]=epel-next-release
 )
 
+# Map for package name suffix for shim/grub2-efi
+# on x86_64: grub2-efi-x64, shim-x64
+# on aarch64: grub2-efi-aa64, shim-aa64
+declare -A cpu_arch_suffix_map=(
+    [x86_64]=x64
+    [aarch64]=aa64
+)
+
 # Prefix to add to CentOS stream repo names when renaming them.
 stream_prefix=stream-
 
@@ -502,8 +510,8 @@ collect_system_info () {
         # We need to make sure that these packages are always installed in an
         # EFI system.
         always_install+=(
-            shim-x64
-            grub2-efi-x64
+            "shim-${cpu_arch_suffix_map[$ARCH]}"
+            "grub2-efi-${cpu_arch_suffix_map[$ARCH]}"
         )
     fi
 
@@ -1098,7 +1106,7 @@ fix_efi () (
             exit_message "Error updating the grub config."
     for i in "${!efi_disk[@]}"; do
         efibootmgr -c -d "/dev/${efi_disk[$i]}" -p "${efi_partition[$i]}" \
-            -L "Rocky Linux" -l /EFI/rocky/shimx64.efi ||
+            -L "Rocky Linux" -l "/EFI/rocky/shim${cpu_arch_suffix_map[$ARCH]}.efi" ||
             exit_message "Error updating uEFI firmware."
     done
 )
