@@ -1185,7 +1185,7 @@ fi
 if [[ $verify_all_rpms && $convert_to_rocky ]]; then
   generate_rpm_info finish
   infomsg $'You may review the following files:\n'
-  find "$convert_info_dir" -type f -name "$HOSTNAME-rpms-*.log"
+  printf '%s\n' "$convert_info_dir/$HOSTNAME-rpm-list-"*.log
 fi
 
 if [[ $update_efi && $convert_to_rocky ]]; then
