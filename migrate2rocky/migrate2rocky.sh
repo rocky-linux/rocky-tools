@@ -785,7 +785,7 @@ usage() {
 } >&2
 
 generate_rpm_info() {
-    mkdir "$convert_info_dir"
+    mkdir -p "$convert_info_dir"
     infomsg  "Creating a list of RPMs installed: $1"$'\n'
 # shellcheck disable=SC2140
     rpm -qa --qf \
