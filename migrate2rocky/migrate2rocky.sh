@@ -785,7 +785,7 @@ usage() {
 } >&2
 
 generate_rpm_info() {
-    mkdir /root/convert
+    mkdir -p "$convert_info_dir"
     infomsg  "Creating a list of RPMs installed: $1"$'\n'
 # shellcheck disable=SC2140
     rpm -qa --qf \
@@ -1185,7 +1185,7 @@ fi
 if [[ $verify_all_rpms && $convert_to_rocky ]]; then
   generate_rpm_info finish
   infomsg $'You may review the following files:\n'
-  find /root/convert -type f -name "$HOSTNAME-rpms-*.log"
+  printf '%s\n' "$convert_info_dir/$HOSTNAME-rpm-list-"*.log
 fi
 
 if [[ $update_efi && $convert_to_rocky ]]; then
