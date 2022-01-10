@@ -665,10 +665,10 @@ $'because continuing with the migration could cause further damage to system.'
         then
             # System package that needs to be swapped / disabled
             installed_pkg_map[$p]=
-            installed_sys_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+            installed_sys_stream_repos_pkgs+=( "${stream_repos_pkgs[$p]}" )
         elif rpm --quiet -q "${stream_repos_pkgs[$p]}"; then
             # Non-system package, repos just need to be disabled.
-            installed_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+            installed_stream_repos_pkgs+=( "${stream_repos_pkgs[$p]}" )
         fi
     done
 
@@ -735,7 +735,7 @@ $'because continuing with the migration could cause further damage to system.'
             mod=${mod/$gl/$repl}
         done
         if [[ $mod != "${enabled_modules[$i]}" ]]; then
-            disable_modules+=(${enabled_modules[$i]})
+            disable_modules+=("${enabled_modules[$i]}")
             enabled_modules[$i]=$mod
         fi
     done
