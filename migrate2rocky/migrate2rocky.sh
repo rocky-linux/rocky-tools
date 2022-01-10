@@ -44,6 +44,9 @@ if (( BASH_VERSINFO[0]*100 + BASH_VERSINFO[1] < 402 )); then
     exit 1
 fi
 
+# Set version.
+VERSION=1.0.0
+
 # Make sure we're root.
 if (( EUID != 0 )); then
     printf '%s\n' \
@@ -774,6 +777,7 @@ unset convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi \
 
 usage() {
   printf '%s\n' \
+      "Version: $VERSION" \
       "Usage: ${0##*/} [OPTIONS]" \
       '' \
       'Options:' \
