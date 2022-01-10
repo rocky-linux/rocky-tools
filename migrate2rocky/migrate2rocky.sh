@@ -283,6 +283,7 @@ pre_check () {
 
 	dir=${dirs[$((i++))]}
 
+        # shellcheck disable=SC2034
 	dir_mount_map[$dir]=$mount
 	mount_avail_map[$mount]=${avail%M}
 	(( mount_space_map[$mount]+=dir_space_map[$dir] ))
