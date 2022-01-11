@@ -843,6 +843,7 @@ package_swaps() {
         fi
 
         # Rename the stream repos with a prefix and fix the baseurl.
+        # shellcheck disable=SC2016
         sed -i \
             -e 's/^\[/['"$stream_prefix"'/' \
             -e 's|^mirrorlist=|#mirrorlist=|' \
