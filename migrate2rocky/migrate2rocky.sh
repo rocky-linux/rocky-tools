@@ -479,10 +479,10 @@ collect_system_info () {
             --noheadings) ||
             exit_message "Can't find EFI mount.  No EFI  boot detected."
         kname=$(lsblk -dno kname "$efi_mount")
-        efi_disk=$(lsblk -dno pkname "/dev/$kname")
+        efi_disk=("$(lsblk -dno pkname "/dev/$kname")")
 
-        if [[ $efi_disk ]]; then
-            efi_partition=$(<"/sys/block/$efi_disk/$kname/partition")
+        if [[ ${efi_disk[0]} ]]; then
+	    efi_partition=("$(<"/sys/block/$efi_disk/$kname/partition")")
         else
             # This is likely an md-raid or other type of virtual disk, we need
             # to dig a little deeper to find the actual physical disks and
