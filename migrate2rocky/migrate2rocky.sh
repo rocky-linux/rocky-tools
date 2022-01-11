@@ -275,7 +275,7 @@ pre_check () {
     fi
     local -a errs dirs=("${!dir_space_map[@]}")
     local dir mount avail i=0
-    local -A mount_avail_map dir_mount_map mount_space_map
+    local -A mount_avail_map mount_space_map
     while read -r mount avail; do 
 	if [[ $mount == 'Filesystem' ]]; then
 	    continue
@@ -283,7 +283,6 @@ pre_check () {
 
 	dir=${dirs[$((i++))]}
 
-	dir_mount_map[$dir]=$mount
 	mount_avail_map[$mount]=${avail%M}
 	(( mount_space_map[$mount]+=dir_space_map[$dir] ))
     done < <(df -BM --output=source,avail "${dirs[@]}")
