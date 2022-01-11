@@ -212,6 +212,7 @@ logmessage(){
 
 # This just grabs a field from os-release and returns it.
 os-release () (
+    # shellcheck source=/dev/null
     . /etc/os-release
     if ! [[ ${!1} ]]; then
         return 1
