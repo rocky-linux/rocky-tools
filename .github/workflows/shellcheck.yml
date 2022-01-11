@@ -16,6 +16,16 @@ jobs:
       - name: Check out the codebase.
         uses: actions/checkout@v2
 
+      - name: Install shellcheck (${SHELLCHECK_VERSION})
+        run: |
+          sudo curl -L https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.$(uname -s).$(uname -m).tar.xz -o shellcheck.tar.xz
+          sudo tar -xvf shellcheck.tar.xz
+          sudo mv shellcheck-v${SHELLCHECK_VERSION}/shellcheck /usr/local/bin/shellcheck
+          sudo chmod 755 /usr/local/bin/shellcheck
+          shellcheck --version
+        env:
+          SHELLCHECK_VERSION: 0.7.2
+
       - name: Shellcheck!
         run: |
           shellcheck migrate2rocky/migrate2rocky.sh
