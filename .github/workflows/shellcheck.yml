@@ -16,7 +16,7 @@ jobs:
       - name: Check out the codebase.
         uses: actions/checkout@v2
 
-      - name: Install shellcheck (${SHELLCHECK_VERSION})
+      - name: Install shellcheck from GitHub releases
         run: |
           sudo curl -L https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.$(uname -s).$(uname -m).tar.xz -o shellcheck.tar.xz
           sudo tar -xvf shellcheck.tar.xz
