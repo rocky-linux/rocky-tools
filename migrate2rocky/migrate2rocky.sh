@@ -212,6 +212,7 @@ logmessage(){
 
 # This just grabs a field from os-release and returns it.
 os-release () (
+    # shellcheck source=/dev/null
     . /etc/os-release
     if ! [[ ${!1} ]]; then
         return 1
@@ -275,7 +276,7 @@ pre_check () {
     fi
     local -a errs dirs=("${!dir_space_map[@]}")
     local dir mount avail i=0
-    local -A mount_avail_map dir_mount_map mount_space_map
+    local -A mount_avail_map mount_space_map
     while read -r mount avail; do 
 	if [[ $mount == 'Filesystem' ]]; then
 	    continue
@@ -283,7 +284,6 @@ pre_check () {
 
 	dir=${dirs[$((i++))]}
 
-	dir_mount_map[$dir]=$mount
 	mount_avail_map[$mount]=${avail%M}
 	(( mount_space_map[$mount]+=dir_space_map[$dir] ))
     done < <(df -BM --output=source,avail "${dirs[@]}")
@@ -480,10 +480,10 @@ collect_system_info () {
             --noheadings) ||
             exit_message "Can't find EFI mount.  No EFI  boot detected."
         kname=$(lsblk -dno kname "$efi_mount")
-        efi_disk=$(lsblk -dno pkname "/dev/$kname")
+        efi_disk=("$(lsblk -dno pkname "/dev/$kname")")
 
-        if [[ $efi_disk ]]; then
-            efi_partition=$(<"/sys/block/$efi_disk/$kname/partition")
+        if [[ ${efi_disk[0]} ]]; then
+	    efi_partition=("$(<"/sys/block/${efi_disk[0]}/$kname/partition")")
         else
             # This is likely an md-raid or other type of virtual disk, we need
             # to dig a little deeper to find the actual physical disks and
@@ -665,10 +665,10 @@ $'because continuing with the migration could cause further damage to system.'
         then
             # System package that needs to be swapped / disabled
             installed_pkg_map[$p]=
-            installed_sys_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+            installed_sys_stream_repos_pkgs+=( "${stream_repos_pkgs[$p]}" )
         elif rpm --quiet -q "${stream_repos_pkgs[$p]}"; then
             # Non-system package, repos just need to be disabled.
-            installed_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+            installed_stream_repos_pkgs+=( "${stream_repos_pkgs[$p]}" )
         fi
     done
 
@@ -735,7 +735,7 @@ $'because continuing with the migration could cause further damage to system.'
             mod=${mod/$gl/$repl}
         done
         if [[ $mod != "${enabled_modules[$i]}" ]]; then
-            disable_modules+=(${enabled_modules[$i]})
+            disable_modules+=("${enabled_modules[$i]}")
             enabled_modules[$i]=$mod
         fi
     done
@@ -843,6 +843,7 @@ package_swaps() {
         fi
 
         # Rename the stream repos with a prefix and fix the baseurl.
+        # shellcheck disable=SC2016
         sed -i \
             -e 's/^\[/['"$stream_prefix"'/' \
             -e 's|^mirrorlist=|#mirrorlist=|' \
