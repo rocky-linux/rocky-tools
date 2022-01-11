@@ -479,12 +479,9 @@ collect_system_info () {
             --noheadings) ||
             exit_message "Can't find EFI mount.  No EFI  boot detected."
         kname=$(lsblk -dno kname "$efi_mount")
-        # shellcheck disable=SC2178
         efi_disk=$(lsblk -dno pkname "/dev/$kname")
 
-        # shellcheck disable=SC2128
         if [[ $efi_disk ]]; then
-            # shellcheck disable=SC2178
             efi_partition=$(<"/sys/block/$efi_disk/$kname/partition")
         else
             # This is likely an md-raid or other type of virtual disk, we need
