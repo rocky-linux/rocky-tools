@@ -28,6 +28,10 @@ result in migrate2rocky leaving the system in an unstable state:
 
 ### Known Issues
 
+#### Running the script in Cockpit's Terminal Screen will be interrupted
+
+Do not run this script through the Terminal screen built into Cockpit.  As the script runs the upgrades, Cockpit will be restarted and Terminal connection will disconnect, thus stopping the script and leaving the system in an unrecoverable state.  It may be possible to launch a screen or tmux session from the Cockpit Terminal, but USE AT YOUR OWN RISK.
+
 #### Custom replacements of default repositories
 
 This script expects the **original repository configuration being present, as well
