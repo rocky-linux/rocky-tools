@@ -26,6 +26,10 @@ result in migrate2rocky leaving the system in an unstable state:
 /boot  50M
 ```
 
+### Recommended Practice
+
+When running this script, especially via a remote session, it is highly recommended to enter a screen or tmux session before running.  If a standard ssh or terminal session, such as the Cockpit Terminal window, is disrupted, the script will die and leave the system in a potential unrecoverable state.  For more on tmux sessions, please see:  https://github.com/tmux/tmux/wiki
+
 ### Known Issues
 
 #### Custom replacements of default repositories
