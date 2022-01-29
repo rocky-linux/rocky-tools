@@ -125,6 +125,7 @@ In order to resolve this issue, boot your dedicated server into a rescue system 
 From here, you need to locate your partitions via `fdisk -l` and mount your `/` partition into a directory of your choosing (or `/mnt`).
 
 Run the following commands (be sure to change the "mnt" to the directory of your mounted drives).
+> Note: You may need to mount your `/boot` directory if your `/` and `/boot` directories are different. You can do this by doing `mnt /dev/XXX /mnt/dev`
 ```
 mount --rbind /dev  /mnt/dev
 mount --rbind /proc /mnt/proc
