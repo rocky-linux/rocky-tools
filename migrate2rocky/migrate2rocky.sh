@@ -378,10 +378,11 @@ repoquery () {
 
 # This function will overwrite the repoinfo_results associative array with the
 # info for the resulting repository.
-repoinfo () {
+_repoinfo () {
     local name val result
-    result=$(dnf -y -q repoinfo "$1") ||
-            exit_message "Failed to fetch info for repository $1."
+    result=$(
+	safednf -y -q --repo="$1" "${dist_repourl_swaps[@]}" repoinfo "$1"
+    ) || return
     if [[ $result == 'Total packages: 0' ]]; then
         # We didn't match this repo.
         return 1
@@ -398,6 +399,11 @@ repoinfo () {
             repoinfo_results[$name]=$val
         fi
     done <<<"$result"
+
+    # Set the enabled state
+    if [[ ! ${enabled_repo_check[$1]} ]]; then
+	repoinfo_results[Repo-status]=disabled
+    fi
 
     # dnf repoinfo doesn't return the gpgkey, but we need that so we have to get
     # it from the repo file itself.
@@ -426,6 +432,28 @@ repoinfo () {
             /^# Managed by \(.*\) subscription-manager$/ {print $2}
         ' < "${repoinfo_results[Repo-filename]}"
     )
+}
+
+# We now store the repoinfo results in a cache.
+declare -g -A repoinfo_results_cache=()
+repoinfo () {
+    if [[ ! ${repoinfo_results_cache[$1]} ]]; then
+	_repoinfo "$@" || return
+	repoinfo_results_cache[$1]=1
+	for k in "${!repoinfo_results[@]}"; do
+	    repoinfo_results_cache[$1:$k]=${repoinfo_results[$k]}
+	done
+    else
+	repoinfo_results=()
+	for k in "${!repoinfo_results_cache[@]}"; do
+	    local repo=${k%%:*} key=${k#*:}
+	    if [[ $repo != $1 ]]; then
+		continue
+	    fi
+
+	    repoinfo_results[$key]=${repoinfo_results_cache[$k]}
+	done
+    fi
 }
 
 provides_pkg () (
@@ -466,6 +494,24 @@ safednf () (
     done
     dnf "${args[@]}"
 )
+
+#
+# Three ways we check the repourl.  If dnf repoinfo fails then we assume the URL
+# is bad.  A missing URL is also considered bad.  Lastly we check to see if we
+# can fetch the repomd.xml file from the repository, and if not then the repourl
+# is considered bad.  In any of these cases we'll end up replacing the repourl
+# with a good one from our mirror of CentOS vault.
+#
+check_repourl () {
+    repoinfo "$1" || return
+    fi
+    if [[ ! ${repoinfo_results[Repo-baseurl]} ]]; then
+	return 1
+    fi
+
+    curl -sfLI "${repoinfo_results[Repo-baseurl]%% *}repodata/repomd.xml"
+    return
+}
 
 collect_system_info () {
     # Dump the DNF cache first so we start with a clean slate.
@@ -546,10 +592,68 @@ collect_system_info () {
         [devel]=quota-devel.$ARCH
     )
 
+    dist_id=$(os-release ID)
+    # We need a different dist ID for CentOS Linux vs CentOS Stream
+    if [[ $dist_id == centos ]] && rpm --quiet -q centos-stream-release; then
+	$dist_id+=-stream
+    fi
+
     PRETTY_NAME=$(os-release PRETTY_NAME)
     infomsg '%s' \
-        "Preparing to migrate $PRETTY_NAME to Rocky Linux 8."$'\n\n' \
-        "Determining repository names for $PRETTY_NAME"
+        "Preparing to migrate $PRETTY_NAME to Rocky Linux 8."$'\n\n'
+
+    # Check to see if we need to change the repourl on any system repositories
+    # (CentOS 8)
+    local -A dist_repourl_map
+    dist_repourl_map=(
+	[centos:baseos]=https://dl.rockylinux.org/vault/centos/8.5.2111/BaseOS/$ARCH/os/
+	[centos:appstream]=https://dl.rockylinux.org/vault/centos/8.5.2111/AppStream/$ARCH/os/
+	[centos:ha]=https://dl.rockylinux.org/vault/centos/8.5.2111/HighAvailability/$ARCH/os/
+	[centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
+	[centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
+	[centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
+    )
+
+    # In case migration is attempted from very old CentOS (before the repository
+    # names were lowercased)
+    for name in BaseOS AppStream PowerTools Devel; do
+	dist_repourl_map["centos:$name"]=${dist_repourl_map["centos:${name,,}"]}
+    done
+
+    # HighAvailability is different again
+    dist_repourl_map[centos:HighAvailability]=${dist_repourl_map[centos:ha]}
+
+    # We need a list of enabled repositories
+    local -a enabled_repos=()
+    declare -g -A enabled_repo_check=()
+    declare -g -a dist_repourl_swaps=()
+    readarray -s 1 -t enabled_repos < <(dnf -q -y repolist --enabled)
+    for r in "${enabled_repos[@]}"; do
+	enabled_repo_check[${r%% *}]=1
+    done
+
+
+    # ...and finally set a number of dnf options to replace the baseurl of these
+    # repos
+    for k in "${dist_repourl_map}"; do
+	local d=${k%%:*} r=${k#*:}
+	if [[ $d != $dist_id || ! ${enabled_repo_check[$r]} ]] ||
+	    check_repourl "$r"; then
+	    continue
+	fi
+
+	dist_repourl_swaps+=(
+	    "--setopt=$r.mirrorlist="
+	    "--setopt=$r.metalink="
+	    "--setopt=$r.baseurl="
+	    "--setopt=$r.baseurl=${dist_repourl_map[$k]}"
+	)
+
+	infomsg 'Baseurl for %s is invalid, setting to %s.\n' \
+	    "$r" "${dist_repourl_map[$k]}"
+    done
+
+    infomsg '%s' "Determining repository names for $PRETTY_NAME"
 
     for r in "${!pkg_repo_map[@]}"; do
         printf '.'
@@ -578,7 +682,9 @@ collect_system_info () {
     # system-release here is a bit of a hack, but it ensures that the
     # rocky-repos package will get installed.
     for r in "${!repo_map[@]}"; do
-        repoinfo "${repo_map[$r]}"
+        repoinfo "${repo_map[$r]}" ||
+	    exit_message "Failed to fetch info for repository ${repo_map[$r]}."
+
         if [[ $r == "baseos" ]]; then
             local baseos_filename=system-release
             if [[ ! ${repoinfo_results[Repo-managed]} ]]; then
@@ -592,7 +698,9 @@ collect_system_info () {
     done
 
     # First get info for the baseos repo
-    repoinfo "${repo_map[baseos]}"
+    repoinfo "${repo_map[baseos]}" ||
+        exit_message "Failed to fetch info for repository ${repo_map[baseos]}."
+
     declare -g -A pkg_map provides_pkg_map
     declare -g -a addl_provide_removes addl_pkg_removes
     provides_pkg_map=(
@@ -717,7 +825,8 @@ $'because continuing with the migration could cause further damage to system.'
     # Get a list of system enabled modules.
     readarray -t enabled_modules < <(
         set -e -o pipefail
-        safednf -y -q "${repo_map[@]/#/--repo=}" module list --enabled |
+        safednf -y -q "${repo_map[@]/#/--repo=}" "${dist_repourl_swaps[@]}" \
+	    module list --enabled |
         awk '
             $1 == "@modulefailsafe", /^$/ {next}
             $1 == "Name", /^$/ {if ($1!="Name" && !/^$/) print $1":"$2}
@@ -800,7 +909,7 @@ generate_rpm_info() {
 # Run a dnf update before the actual migration.
 pre_update() {
     infomsg '%s\n' "Running dnf update before we attempt the migration."
-    dnf -y update || exit_message \
+    safednf -y "${dist_repourl_swaps[@]}" update || exit_message \
 $'Error running pre-update.  Stopping now to avoid putting the system in an\n'\
 $'unstable state.  Please correct the issues shown here and try again.'
 }
@@ -854,6 +963,7 @@ package_swaps() {
 
     # Use dnf shell to swap the system packages out.
     safednf -y shell --disablerepo=\* --noautoremove \
+	${dist_repourl_swaps[@]} \
         --setopt=protected_packages= --setopt=keepcache=True \
         "${dnfparameters[@]}" \
         <<EOF
