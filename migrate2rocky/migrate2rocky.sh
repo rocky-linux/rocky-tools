@@ -543,8 +543,8 @@ collect_system_info () {
         [ha]=pacemaker-doc.noarch
         [powertools]=libaec-devel.$ARCH
         [extras]=epel-release.noarch
+        [devel]=quota-devel.$ARCH
     )
-#        [devel]=quota-devel.$ARCH
 
     PRETTY_NAME=$(os-release PRETTY_NAME)
     infomsg '%s' \
