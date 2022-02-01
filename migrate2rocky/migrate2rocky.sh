@@ -504,7 +504,6 @@ safednf () (
 #
 check_repourl () {
     repoinfo "$1" || return
-    fi
     if [[ ! ${repoinfo_results[Repo-baseurl]} ]]; then
 	return 1
     fi
