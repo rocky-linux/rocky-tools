@@ -448,7 +448,7 @@ repoinfo () {
 	repoinfo_results=()
 	for k in "${!repoinfo_results_cache[@]}"; do
 	    local repo=${k%%:*} key=${k#*:}
-	    if [[ $repo != $1 ]]; then
+	    if [[ $repo != "$1" ]]; then
 		continue
 	    fi
 
@@ -601,7 +601,7 @@ collect_system_info () {
     dist_id=$(os-release ID)
     # We need a different dist ID for CentOS Linux vs CentOS Stream
     if [[ $dist_id == centos ]] && rpm --quiet -q centos-stream-release; then
-	$dist_id+=-stream
+	dist_id+=-stream
     fi
 
     PRETTY_NAME=$(os-release PRETTY_NAME)
@@ -643,7 +643,7 @@ collect_system_info () {
     # repos
     for k in "${!dist_repourl_map[@]}"; do
 	local d=${k%%:*} r=${k#*:}
-	if [[ $d != $dist_id || ! ${enabled_repo_check[$r]} ]] ||
+	if [[ $d != "$dist_id" || ! ${enabled_repo_check[$r]} ]] ||
 	    check_repourl "$r"; then
 	    continue
 	fi
@@ -969,7 +969,7 @@ package_swaps() {
 
     # Use dnf shell to swap the system packages out.
     safednf -y shell --disablerepo=\* --noautoremove \
-	${dist_repourl_swaps[@]} \
+	"${dist_repourl_swaps[@]}" \
         --setopt=protected_packages= --setopt=keepcache=True \
         "${dnfparameters[@]}" \
         <<EOF
