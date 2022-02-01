@@ -463,7 +463,10 @@ provides_pkg () (
     fi
 
     set -o pipefail
-    provides=$(dnf -y -q provides "$1" | awk '{print $1; nextfile}') ||
+    provides=$(
+	safednf -y -q "${dist_repourl_swaps[@]}" provides "$1" |
+	awk '{print $1; nextfile}'
+    ) ||
         return 1
     set +o pipefail
     pkg=$(rpm -q --queryformat '%{NAME}\n' "$provides") ||
