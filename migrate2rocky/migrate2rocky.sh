@@ -637,7 +637,7 @@ collect_system_info () {
 
     # ...and finally set a number of dnf options to replace the baseurl of these
     # repos
-    for k in "${dist_repourl_map}"; do
+    for k in "${!dist_repourl_map[@]}"; do
 	local d=${k%%:*} r=${k#*:}
 	if [[ $d != $dist_id || ! ${enabled_repo_check[$r]} ]] ||
 	    check_repourl "$r"; then
