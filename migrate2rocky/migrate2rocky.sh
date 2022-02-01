@@ -358,7 +358,8 @@ bin_check() {
 repoquery () {
     local name val prev result
     result=$(
-        dnf -y -q --setopt=epel.excludepkgs=epel-release repoquery -i "$1" ||
+        safednf -y -q "${dist_repourl_swaps[@]}" \
+	    --setopt=epel.excludepkgs=epel-release repoquery -i "$1" ||
             exit_message "Failed to fetch info for package $1."
     )
     if ! [[ $result ]]; then
@@ -466,8 +467,10 @@ provides_pkg () (
         return 1
     set +o pipefail
     pkg=$(rpm -q --queryformat '%{NAME}\n' "$provides") ||
-            pkg=$(dnf -y -q repoquery --queryformat '%{NAME}\n' "$provides") ||
-            exit_message "Can't get package name for $provides."
+            pkg=$(
+		safednf -y -q "${dist_repourl_swaps[@]}" repoquery \
+		    --queryformat '%{NAME}\n' "$provides"
+	    ) || exit_message "Can't get package name for $provides."
     printf '%s\n' "$pkg"
 )
 
