@@ -514,7 +514,8 @@ check_repourl () {
 	return 1
     fi
 
-    curl -sfLI "${repoinfo_results[Repo-baseurl]%% *}repodata/repomd.xml"
+    curl -sfLI "${repoinfo_results[Repo-baseurl]%% *}repodata/repomd.xml" \
+	> /dev/null
     return
 }
 
