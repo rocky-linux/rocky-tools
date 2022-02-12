@@ -269,6 +269,10 @@ pre_check () {
 'migrate2rocky. See the README file for details.'
     fi
 
+    dnf -y check || exit_message \
+'Errors found in dnf/rpm database.  Please correct before running '\
+'migrate2rocky.'
+
     # Get available space to compare to requirements.
     # If the stock kernel is not installed we don't require space in /boot
     if ! rpm -q --quiet kernel; then 
