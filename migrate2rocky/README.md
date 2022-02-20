@@ -22,24 +22,67 @@ export ROCKY_ENV_MIRROR_URL="https://mirrors.example.org/rocky"
 ```
 
 
+### Disk Space Requirements
+
+Please note the following disk space requirements.  These requirements may vary
+from one system to another.  Failure to have adequate disk space available may
+result in migrate2rocky leaving the system in an unstable state:
+
+```
+/usr   250M
+/var   1.5G
+/boot  50M
+```
+
+### Recommended Practice
+
+When running this script, especially via a remote session, it is highly
+recommended to enter a screen or tmux session before running.  If a standard
+ssh or terminal session, such as the Cockpit Terminal window, is disrupted, the
+script will die and leave the system in a potential unrecoverable state.  For
+more on tmux sessions, please see:  https://github.com/tmux/tmux/wiki
+
 ### Known Issues
+
+#### Running the script in Cockpit's Terminal Screen will be interrupted
+
+Do not run this script through the Terminal screen built into Cockpit.  As the
+script runs the upgrades, Cockpit will be restarted and Terminal connection will
+disconnect, thus stopping the script and leaving the system in an unrecoverable
+state.  It may be possible to launch a screen or tmux session from the Cockpit
+Terminal, but USE AT YOUR OWN RISK.
+
+#### EL8.0 Migrations
+
+If you are attempting to migrate a system that has not been updated since 8.0
+then you must run `dnf update` before attempting the migration.
+
+If you are migrating from CentOS 8.0 then you must manually fix the baseurls of
+the CentOS repositories before running `dnf update`:
+```
+sed -i -r \
+    -e 's!^mirrorlist=!#mirrorlist=!' \
+    -e 's!^#?baseurl=http://(mirror|vault).centos.org/\$contentdir/\$releasever/!baseurl=https://dl.rockylinux.org/vault/centos/8.5.2111/!i' \
+    /etc/yum.repos.d/CentOS-*.repo
+```
 
 #### Custom replacements of default repositories
 
-This script expects the **original repository configuration being present, as well
-as enabled** (i.e. for CentOS the `baseos` repo configuration in the
+This script expects the **original repository configuration being present, as
+well as enabled** (i.e. for CentOS the `baseos` repo configuration in the
 `/etc/yum.repos.d/CentOS-Linux-BaseOS.repo` file has to be present and enabled).
-Also make sure that there are **no other repositories** which could interfere with the
-original configuration.
+Also make sure that there are **no other repositories** which could interfere
+with the original configuration.
 
 Any distribution that has had its core repositories altered, removed, duplicated
 or overridden may cause migrate2rocky to break or corrupt the system when run.
-Any attempt to migrate such systems, even after reversing the changes made by such
-software, is not supported in any way. In all cases you should backup your system
-before using migrate2rocky and USE AT YOUR OWN RISK.
+Any attempt to migrate such systems, even after reversing the changes made by
+such software, is not supported in any way. In all cases you should backup your
+system before using migrate2rocky and USE AT YOUR OWN RISK.
 
-This especially happens on systems configured with a centralized package management
-like Katello (RedHat Satellite 6) or Uyuni (RedHat Satellite 5, SUSE Manager).
+This especially happens on systems configured with a centralized package
+management like Katello (RedHat Satellite 6) or Uyuni (RedHat Satellite 5, SUSE
+Manager).
 
 #### RHEL migrations show error messages during conversion
 

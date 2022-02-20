@@ -55,6 +55,26 @@ fi
 # Path to logfile
 logfile=/var/log/migrate2rocky.log
 
+# Rotate old logs
+numlogs=5
+if [[ -e $logfile ]]; then
+    # Here we use mv before bin_check, so simply check the exit status to see if
+    # it worked.
+    if ! mv -f "$logfile" "$logfile.0"; then
+        printf '%s\n' "Unable to rotate logfiles, continuing without rotation." >&2
+    else
+        for ((i=numlogs;i>0;i--)); do
+            if [[ -e "$logfile.$((i-1))" ]]; then
+                if ! mv -f "$logfile.$((i-1))" "$logfile.$i"; then
+                    printf '%s\n' \
+"Unable to rotate logfiles, continuing without rotation."
+                    break
+                fi
+            fi
+        done
+    fi
+fi
+
 # Send all output to the logfile as well as stdout.
 # After the following we get:
 # Output to 1 goes to stdout and the logfile.
@@ -62,7 +82,7 @@ logfile=/var/log/migrate2rocky.log
 # Output to 3 just goes to stdout.
 # Output to 4 just goes to stderr.
 # Output to 5 just goes to the logfile.
-truncate -s0 "$logfile"
+
 # shellcheck disable=SC2094
 exec \
     3>&1 \
@@ -106,6 +126,8 @@ errmsg () {
     printf '%s%s%s' "$errcolor" "$msg" "$nocolor" >&4
 }
 
+infomsg 'migrate2rocky - Begin logging at %(%c)T.\n\n' -1
+
 export LC_ALL=C.UTF-8
 unset LANGUAGE
 shopt -s nullglob
@@ -131,14 +153,44 @@ repo_urls=(
     [rockyappstream]="${ROCKY_MIRROR_URL}/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
 )
 
+# These are additional packages that should always be installed.
+# (currently blank, but we add to it for an EFI boot system).
+always_install=()
+
 # The repos package for CentOS stream requires special handling.
 declare -g -A stream_repos_pkgs
 stream_repos_pkgs=(
     [rocky-repos]=centos-stream-repos
     [epel-release]=epel-next-release
 )
+
+# Map for package name suffix for shim/grub2-efi
+# on x86_64: grub2-efi-x64, shim-x64
+# on aarch64: grub2-efi-aa64, shim-aa64
+declare -A cpu_arch_suffix_map=(
+    [x86_64]=x64
+    [aarch64]=aa64
+)
+
 # Prefix to add to CentOS stream repo names when renaming them.
 stream_prefix=stream-
+
+# Always replace these stream packages with their Rocky Linux equivalents.
+stream_always_replace=(
+    fwupdate\*
+    grub2-\*
+    shim-\*
+    kernel
+    kernel-\*
+)
+
+# Directory to required space in MiB
+declare -A dir_space_map
+dir_space_map=(
+    [/usr]=250
+    [/var]=1536
+    [/boot]=50
+)
 
 unset CDPATH
 
@@ -164,6 +216,7 @@ logmessage(){
 
 # This just grabs a field from os-release and returns it.
 os-release () (
+    # shellcheck source=/dev/null
     . /etc/os-release
     if ! [[ ${!1} ]]; then
         return 1
@@ -208,14 +261,47 @@ exit_clean () {
 
 pre_check () {
     if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
+# shellcheck disable=SC2026
         exit_message \
 'Migration from Katello-modified systems is not supported by migrate2rocky. '\
 'See the README file for details.'
     fi
     if [[ -e /etc/salt/minion.d/susemanager.conf ]]; then
+# shellcheck disable=SC2026
         exit_message \
 'Migration from Uyuni/SUSE Manager-modified systems is not supported by '\
 'migrate2rocky. See the README file for details.'
+    fi
+
+    # Get available space to compare to requirements.
+    # If the stock kernel is not installed we don't require space in /boot
+    if ! rpm -q --quiet kernel; then 
+	dir_space_map[/boot]=0
+    fi
+    local -a errs dirs=("${!dir_space_map[@]}")
+    local dir mount avail i=0
+    local -A mount_avail_map mount_space_map
+    while read -r mount avail; do 
+	if [[ $mount == 'Filesystem' ]]; then
+	    continue
+	fi
+
+	dir=${dirs[$((i++))]}
+
+	mount_avail_map[$mount]=${avail%M}
+	(( mount_space_map[$mount]+=dir_space_map[$dir] ))
+    done < <(df -BM --output=source,avail "${dirs[@]}")
+
+    for mount in "${!mount_space_map[@]}"; do
+	(( avail = mount_avail_map[$mount]*95/100 ))
+	if (( avail < mount_space_map[$mount] )); then
+	    errs+=("Not enough space in $mount, ${mount_space_map[$mount]}M required, ${avail}M available.")
+	fi
+    done
+
+    if (( ${#errs[@]} )); then
+	IFS=$'\n'
+	exit_message "${errs[*]}"
     fi
 }
 
@@ -226,6 +312,7 @@ pre_check () {
 bin_check() {
     # Check the platform.
     if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
+# shellcheck disable=SC2026
         exit_message \
 'This script must be run on an EL8 distribution.  Migration from other '\
 'distributions is not supported.'
@@ -233,11 +320,11 @@ bin_check() {
 
     local -a missing bins
     bins=(
-        rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir
-        rm head curl sha512sum mktemp systemd-detect-virt sed
+        rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir df
+        rm head curl sha512sum mktemp systemd-detect-virt sed grep
     )
     if [[ $update_efi ]]; then
-        bins+=(findmnt grub2-mkconfig efibootmgr grep mokutil lsblk)
+        bins+=(findmnt grub2-mkconfig efibootmgr mokutil lsblk)
     fi
     for bin in "${bins[@]}"; do
         if ! type "$bin" >/dev/null 2>&1; then
@@ -262,6 +349,7 @@ bin_check() {
     done;
 
     if (( ${#missing[@]} )); then
+# shellcheck disable=SC2140
         exit_message \
 "Commands not found: ${missing[*]}.  Possible bad PATH setting or corrupt "\
 "installation."
@@ -273,10 +361,9 @@ bin_check() {
 # as a special-case below to avoid having the extras repository map to epel.
 repoquery () {
     local name val prev result
-    result=$(
-        dnf -y -q --setopt=epel.excludepkgs=epel-release repoquery -i "$1" ||
-            exit_message "Failed to fetch info for package $1."
-    )
+    result=$(safednf -y -q "${dist_repourl_swaps[@]}" \
+	--setopt=epel.excludepkgs=epel-release repoquery -i "$1") ||
+    	exit_message "Failed to fetch info for package $1."
     if ! [[ $result ]]; then
         # We didn't match this package, the repo could be disabled.
         return 1
@@ -294,10 +381,11 @@ repoquery () {
 
 # This function will overwrite the repoinfo_results associative array with the
 # info for the resulting repository.
-repoinfo () {
+_repoinfo () {
     local name val result
-    result=$(dnf -y -q repoinfo "$1") ||
-            exit_message "Failed to fetch info for repository $1."
+    result=$(
+	safednf -y -q --repo="$1" "${dist_repourl_swaps[@]}" repoinfo "$1"
+    ) || return
     if [[ $result == 'Total packages: 0' ]]; then
         # We didn't match this repo.
         return 1
@@ -314,6 +402,11 @@ repoinfo () {
             repoinfo_results[$name]=$val
         fi
     done <<<"$result"
+
+    # Set the enabled state
+    if [[ ! ${enabled_repo_check[$1]} ]]; then
+	repoinfo_results[Repo-status]=disabled
+    fi
 
     # dnf repoinfo doesn't return the gpgkey, but we need that so we have to get
     # it from the repo file itself.
@@ -344,18 +437,45 @@ repoinfo () {
     )
 }
 
+# We now store the repoinfo results in a cache.
+declare -g -A repoinfo_results_cache=()
+repoinfo () {
+    if [[ ! ${repoinfo_results_cache[$1]} ]]; then
+	_repoinfo "$@" || return
+	repoinfo_results_cache[$1]=1
+	for k in "${!repoinfo_results[@]}"; do
+	    repoinfo_results_cache[$1:$k]=${repoinfo_results[$k]}
+	done
+    else
+	repoinfo_results=()
+	for k in "${!repoinfo_results_cache[@]}"; do
+	    local repo=${k%%:*} key=${k#*:}
+	    if [[ $repo != "$1" ]]; then
+		continue
+	    fi
+
+	    repoinfo_results[$key]=${repoinfo_results_cache[$k]}
+	done
+    fi
+}
+
 provides_pkg () (
     if [[ ! $1 ]]; then
         return 0
     fi
 
     set -o pipefail
-    provides=$(dnf -y -q provides "$1" | awk '{print $1; nextfile}') ||
+    provides=$(
+	safednf -y -q "${dist_repourl_swaps[@]}" provides "$1" |
+	awk '{print $1; nextfile}'
+    ) ||
         return 1
     set +o pipefail
     pkg=$(rpm -q --queryformat '%{NAME}\n' "$provides") ||
-            pkg=$(dnf -y -q repoquery --queryformat '%{NAME}\n' "$provides") ||
-            exit_message "Can't get package name for $provides."
+            pkg=$(
+		safednf -y -q "${dist_repourl_swaps[@]}" repoquery \
+		    --queryformat '%{NAME}\n' "$provides"
+	    ) || exit_message "Can't get package name for $provides."
     printf '%s\n' "$pkg"
 )
 
@@ -383,6 +503,24 @@ safednf () (
     dnf "${args[@]}"
 )
 
+#
+# Three ways we check the repourl.  If dnf repoinfo fails then we assume the URL
+# is bad.  A missing URL is also considered bad.  Lastly we check to see if we
+# can fetch the repomd.xml file from the repository, and if not then the repourl
+# is considered bad.  In any of these cases we'll end up replacing the repourl
+# with a good one from our mirror of CentOS vault.
+#
+check_repourl () {
+    repoinfo "$1" || return
+    if [[ ! ${repoinfo_results[Repo-baseurl]} ]]; then
+	return 1
+    fi
+
+    curl -sfLI "${repoinfo_results[Repo-baseurl]%% *}repodata/repomd.xml" \
+	> /dev/null
+    return
+}
+
 collect_system_info () {
     # Dump the DNF cache first so we start with a clean slate.
     infomsg $'\nRemoving dnf cache\n'
@@ -396,10 +534,10 @@ collect_system_info () {
             --noheadings) ||
             exit_message "Can't find EFI mount.  No EFI  boot detected."
         kname=$(lsblk -dno kname "$efi_mount")
-        efi_disk=$(lsblk -dno pkname "/dev/$kname")
+        efi_disk=("$(lsblk -dno pkname "/dev/$kname")")
 
-        if [[ $efi_disk ]]; then
-            efi_partition=$(<"/sys/block/$efi_disk/$kname/partition")
+        if [[ ${efi_disk[0]} ]]; then
+	    efi_partition=("$(<"/sys/block/${efi_disk[0]}/$kname/partition")")
         else
             # This is likely an md-raid or other type of virtual disk, we need
             # to dig a little deeper to find the actual physical disks and
@@ -422,15 +560,13 @@ collect_system_info () {
             done
             cd -
         fi
-    fi
 
-    # check if EFI secure boot is enabled
-    if [[ $update_efi ]]; then
-        if mokutil --sb-state 2>&1 | grep -q "SecureBoot enabled"; then
-            exit_message \
-"EFI Secure Boot is enabled but Rocky Linux doesn't provide a signed shim yet."\
-" Disable EFI Secure Boot and reboot."
-        fi
+        # We need to make sure that these packages are always installed in an
+        # EFI system.
+        always_install+=(
+            "shim-${cpu_arch_suffix_map[$ARCH]}"
+            "grub2-efi-${cpu_arch_suffix_map[$ARCH]}"
+        )
     fi
 
     # Don't enable these module streams, even if they are enabled in the source
@@ -461,13 +597,71 @@ collect_system_info () {
         [ha]=pacemaker-doc.noarch
         [powertools]=libaec-devel.$ARCH
         [extras]=epel-release.noarch
+        [devel]=quota-devel.$ARCH
     )
-#        [devel]=quota-devel.$ARCH
+
+    dist_id=$(os-release ID)
+    # We need a different dist ID for CentOS Linux vs CentOS Stream
+    if [[ $dist_id == centos ]] && rpm --quiet -q centos-stream-release; then
+	dist_id+=-stream
+    fi
 
     PRETTY_NAME=$(os-release PRETTY_NAME)
     infomsg '%s' \
-        "Preparing to migrate $PRETTY_NAME to Rocky Linux 8."$'\n\n' \
-        "Determining repository names for $PRETTY_NAME"
+        "Preparing to migrate $PRETTY_NAME to Rocky Linux 8."$'\n\n'
+
+    # Check to see if we need to change the repourl on any system repositories
+    # (CentOS 8)
+    local -A dist_repourl_map
+    dist_repourl_map=(
+	[centos:baseos]=https://dl.rockylinux.org/vault/centos/8.5.2111/BaseOS/$ARCH/os/
+	[centos:appstream]=https://dl.rockylinux.org/vault/centos/8.5.2111/AppStream/$ARCH/os/
+	[centos:ha]=https://dl.rockylinux.org/vault/centos/8.5.2111/HighAvailability/$ARCH/os/
+	[centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
+	[centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
+	[centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
+    )
+
+    # In case migration is attempted from very old CentOS (before the repository
+    # names were lowercased)
+    for name in BaseOS AppStream PowerTools Devel; do
+	dist_repourl_map["centos:$name"]=${dist_repourl_map["centos:${name,,}"]}
+    done
+
+    # HighAvailability is different again
+    dist_repourl_map[centos:HighAvailability]=${dist_repourl_map[centos:ha]}
+
+    # We need a list of enabled repositories
+    local -a enabled_repos=()
+    declare -g -A enabled_repo_check=()
+    declare -g -a dist_repourl_swaps=()
+    readarray -s 1 -t enabled_repos < <(dnf -q -y repolist --enabled)
+    for r in "${enabled_repos[@]}"; do
+	enabled_repo_check[${r%% *}]=1
+    done
+
+
+    # ...and finally set a number of dnf options to replace the baseurl of these
+    # repos
+    for k in "${!dist_repourl_map[@]}"; do
+	local d=${k%%:*} r=${k#*:}
+	if [[ $d != "$dist_id" || ! ${enabled_repo_check[$r]} ]] ||
+	    check_repourl "$r"; then
+	    continue
+	fi
+
+	dist_repourl_swaps+=(
+	    "--setopt=$r.mirrorlist="
+	    "--setopt=$r.metalink="
+	    "--setopt=$r.baseurl="
+	    "--setopt=$r.baseurl=${dist_repourl_map[$k]}"
+	)
+
+	infomsg 'Baseurl for %s is invalid, setting to %s.\n' \
+	    "$r" "${dist_repourl_map[$k]}"
+    done
+
+    infomsg '%s' "Determining repository names for $PRETTY_NAME"
 
     for r in "${!pkg_repo_map[@]}"; do
         printf '.'
@@ -496,7 +690,9 @@ collect_system_info () {
     # system-release here is a bit of a hack, but it ensures that the
     # rocky-repos package will get installed.
     for r in "${!repo_map[@]}"; do
-        repoinfo "${repo_map[$r]}"
+        repoinfo "${repo_map[$r]}" ||
+	    exit_message "Failed to fetch info for repository ${repo_map[$r]}."
+
         if [[ $r == "baseos" ]]; then
             local baseos_filename=system-release
             if [[ ! ${repoinfo_results[Repo-managed]} ]]; then
@@ -510,7 +706,9 @@ collect_system_info () {
     done
 
     # First get info for the baseos repo
-    repoinfo "${repo_map[baseos]}"
+    repoinfo "${repo_map[baseos]}" ||
+        exit_message "Failed to fetch info for repository ${repo_map[baseos]}."
+
     declare -g -A pkg_map provides_pkg_map
     declare -g -a addl_provide_removes addl_pkg_removes
     provides_pkg_map=(
@@ -549,6 +747,7 @@ $'because continuing with the migration could cause further damage to system.'
         addl_pkg_removes+=("$pkg")
     done
 
+# shellcheck disable=SC2140
     printf '%s\n' '' '' \
 "Found the following system packages which map from $PRETTY_NAME to Rocky "\
 "Linux 8:"
@@ -582,13 +781,14 @@ $'because continuing with the migration could cause further damage to system.'
         then
             # System package that needs to be swapped / disabled
             installed_pkg_map[$p]=
-            installed_sys_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+            installed_sys_stream_repos_pkgs+=( "${stream_repos_pkgs[$p]}" )
         elif rpm --quiet -q "${stream_repos_pkgs[$p]}"; then
             # Non-system package, repos just need to be disabled.
-            installed_stream_repos_pkgs+=( ${stream_repos_pkgs[$p]} )
+            installed_stream_repos_pkgs+=( "${stream_repos_pkgs[$p]}" )
         fi
     done
 
+# shellcheck disable=SC2140
     printf '%s\n' '' \
 "We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 "\
 "equivalents"
@@ -599,6 +799,7 @@ $'because continuing with the migration could cause further damage to system.'
     )
 
     if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
+# shellcheck disable=SC2026
         printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the following packages will be '\
 'removed from the rpm database but the included repos will be renamed and '\
@@ -607,6 +808,7 @@ $'because continuing with the migration could cause further damage to system.'
     fi
 
     if (( ${#installed_stream_repos_pkgs[@]} )); then
+# shellcheck disable=SC2026
         printf '%s\n' '' \
 'Also to aid the transition from CentOS Stream the repos included in the '\
 'following packages will be renamed and retained but disabled:' \
@@ -631,7 +833,8 @@ $'because continuing with the migration could cause further damage to system.'
     # Get a list of system enabled modules.
     readarray -t enabled_modules < <(
         set -e -o pipefail
-        safednf -y -q "${repo_map[@]/#/--repo=}" module list --enabled |
+        safednf -y -q "${repo_map[@]/#/--repo=}" "${dist_repourl_swaps[@]}" \
+	    module list --enabled |
         awk '
             $1 == "@modulefailsafe", /^$/ {next}
             $1 == "Name", /^$/ {if ($1!="Name" && !/^$/) print $1":"$2}
@@ -649,7 +852,7 @@ $'because continuing with the migration could cause further damage to system.'
             mod=${mod/$gl/$repl}
         done
         if [[ $mod != "${enabled_modules[$i]}" ]]; then
-            disable_modules+=(${enabled_modules[$i]})
+            disable_modules+=("${enabled_modules[$i]}")
             enabled_modules[$i]=$mod
         fi
     done
@@ -674,6 +877,7 @@ $'because continuing with the migration could cause further damage to system.'
         "${enabled_modules[@]}" ''
 
     if (( ${#managed_repos[@]} )); then
+# shellcheck disable=SC2026
         printf '%s\n' '' \
 'In addition, since this system uses subscription-manager the following '\
 'managed repos will be disabled:' \
@@ -698,8 +902,9 @@ usage() {
 } >&2
 
 generate_rpm_info() {
-    mkdir /root/convert
+    mkdir -p "$convert_info_dir"
     infomsg  "Creating a list of RPMs installed: $1"$'\n'
+# shellcheck disable=SC2140
     rpm -qa --qf \
 "%{NAME}|%{VERSION}|%{RELEASE}|%{INSTALLTIME}|%{VENDOR}|%{BUILDTIME}|"\
 "%{BUILDHOST}|%{SOURCERPM}|%{LICENSE}|%{PACKAGER}\n" |
@@ -712,7 +917,7 @@ generate_rpm_info() {
 # Run a dnf update before the actual migration.
 pre_update() {
     infomsg '%s\n' "Running dnf update before we attempt the migration."
-    dnf -y update || exit_message \
+    safednf -y "${dist_repourl_swaps[@]}" update || exit_message \
 $'Error running pre-update.  Stopping now to avoid putting the system in an\n'\
 $'unstable state.  Please correct the issues shown here and try again.'
 }
@@ -736,7 +941,8 @@ package_swaps() {
     done
 
     # CentOS Stream specific processing
-    if (( ${#installed_stream_repos_pkgs[@]} )); then
+    if (( ${#installed_stream_repos_pkgs[@]} ||
+          ${#installed_sys_stream_repos_pkgs[@]} )); then
         # Get a list of the repo files.
         local -a repos_files
         readarray -t repos_files < <(
@@ -745,17 +951,27 @@ package_swaps() {
             grep '^/etc/yum\.repos\.d/.\+\.repo$'
         )
 
-        # Remove the package from the rpm db.
-        saferpm -e --justdb --nodeps -a "${installed_sys_stream_repos_pkgs[@]}" ||
+        if (( ${#installed_sys_stream_repos_pkgs[@]} )); then
+            # Remove the package from the rpm db.
+            saferpm -e --justdb --nodeps -a \
+                "${installed_sys_stream_repos_pkgs[@]}" ||
             exit_message \
-"Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[@]}"
+"Could not remove packages from the rpm db: ${installed_sys_stream_repos_pkgs[*]}"
+        fi
 
-        # Rename the stream repos with a prefix.
-        sed -i 's/^\[/['"$stream_prefix"'/' "${repos_files[@]}"
+        # Rename the stream repos with a prefix and fix the baseurl.
+        # shellcheck disable=SC2016
+        sed -i \
+            -e 's/^\[/['"$stream_prefix"'/' \
+            -e 's|^mirrorlist=|#mirrorlist=|' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/8-stream/|' \
+            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/8-stream/|' \
+            "${repos_files[@]}"
     fi
 
     # Use dnf shell to swap the system packages out.
     safednf -y shell --disablerepo=\* --noautoremove \
+	"${dist_repourl_swaps[@]}" \
         --setopt=protected_packages= --setopt=keepcache=True \
         "${dnfparameters[@]}" \
         <<EOF
@@ -861,7 +1077,7 @@ EOF
 
     # Distrosync
     infomsg $'Ensuring repos are enabled before the package swap\n'
-    safednf -y --enableplugin=config-manager config-manager \
+    safednf -y --enableplugin=config_manager config-manager \
         --set-enabled "${!repo_map[@]}" || {
         printf '%s\n' 'Repo name missing?'
         exit 25
@@ -876,7 +1092,7 @@ EOF
 
         if (( ${#managed_repos[@]} )); then
             infomsg $'\nDisabling subscription managed repos\n'
-            safednf -y --enableplugin=config-manager config-manager \
+            safednf -y --enableplugin=config_manager config-manager \
                 --disable "${managed_repos[@]}"
         fi
     fi
@@ -908,6 +1124,12 @@ EOF
             "$stream_prefix*" ||
             errmsg \
 $'Failed to disable CentOS Stream repos, please check and disable manually.\n'
+
+        if (( ${#stream_always_replace[@]} )) &&
+            [[ $(saferpm -qa "${stream_always_replace[@]}") ]]; then
+            safednf -y distro-sync "${stream_always_replace[@]}" ||
+                exit_message "Error during distro-sync."
+        fi
 
         infomsg $'\nCentOS Stream Migration Notes:\n\n'
         cat <<EOF
@@ -950,6 +1172,12 @@ Subscription Management. If no longer desired, you can use
 behavior.
 EOF
     fi
+
+    if (( ${#always_install[@]} )); then
+        safednf -y install "${always_install[@]}" || exit_message \
+            "Error installing required packages: ${always_install[*]}"
+    fi
+
     if [[ $tmp_sm_ca_dir ]]; then
         # Check to see if there's Subscription Manager certs which have been
         # removed
@@ -1007,7 +1235,7 @@ fix_efi () (
             exit_message "Error updating the grub config."
     for i in "${!efi_disk[@]}"; do
         efibootmgr -c -d "/dev/${efi_disk[$i]}" -p "${efi_partition[$i]}" \
-            -L "Rocky Linux" -l /EFI/rocky/grubx64.efi ||
+            -L "Rocky Linux" -l "/EFI/rocky/shim${cpu_arch_suffix_map[$ARCH]}.efi" ||
             exit_message "Error updating uEFI firmware."
     done
 )
@@ -1086,7 +1314,7 @@ fi
 if [[ $verify_all_rpms && $convert_to_rocky ]]; then
   generate_rpm_info finish
   infomsg $'You may review the following files:\n'
-  find /root/convert -type f -name "$HOSTNAME-rpms-*.log"
+  printf '%s\n' "$convert_info_dir/$HOSTNAME-rpm-list-"*.log
 fi
 
 if [[ $update_efi && $convert_to_rocky ]]; then
