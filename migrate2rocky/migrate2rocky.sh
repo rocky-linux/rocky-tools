@@ -44,6 +44,8 @@ if (( BASH_VERSINFO[0]*100 + BASH_VERSINFO[1] < 402 )); then
     exit 1
 fi
 
+shopt -s extglob
+
 # Make sure we're root.
 if (( EUID != 0 )); then
     printf '%s\n' \
@@ -269,6 +271,10 @@ pre_check () {
 'migrate2rocky. See the README file for details.'
     fi
 
+    dnf -y check || exit_message \
+'Errors found in dnf/rpm database.  Please correct before running '\
+'migrate2rocky.'
+
     # Get available space to compare to requirements.
     # If the stock kernel is not installed we don't require space in /boot
     if ! rpm -q --quiet kernel; then 
@@ -436,6 +442,7 @@ _repoinfo () {
 # We now store the repoinfo results in a cache.
 declare -g -A repoinfo_results_cache=()
 repoinfo () {
+    local k
     if [[ ! ${repoinfo_results_cache[$1]} ]]; then
 	_repoinfo "$@" || return
 	repoinfo_results_cache[$1]=1
@@ -512,9 +519,13 @@ check_repourl () {
 	return 1
     fi
 
-    curl -sfLI "${repoinfo_results[Repo-baseurl]%% *}repodata/repomd.xml" \
-	> /dev/null
-    return
+    local -a urls;
+    IFS=, read -r -a urls <<<"${repoinfo_results[Repo-baseurl]}"
+    local u
+    for u in "${urls[@]##*( )}"; do
+	curl -sfLI "${u%% *}repodata/repomd.xml" > /dev/null && return
+    done
+    return "$(( $? ? $? : 1 ))"
 }
 
 collect_system_info () {
@@ -639,6 +650,7 @@ collect_system_info () {
 
     # ...and finally set a number of dnf options to replace the baseurl of these
     # repos
+    local k
     for k in "${!dist_repourl_map[@]}"; do
 	local d=${k%%:*} r=${k#*:}
 	if [[ $d != "$dist_id" || ! ${enabled_repo_check[$r]} ]] ||
