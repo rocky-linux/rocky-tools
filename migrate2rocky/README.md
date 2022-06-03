@@ -63,16 +63,30 @@ sed -i -r \
 
 #### Migration in offline mode
 
-Offline mode has received minimal testing and only in the CentOS 8.5 -> Rocky 8.5
-migration from a pristine system using a mounted CentOS 8.5 DVD ISO and a Rocky 8.5
-ISO as offline repositories, mounted respectively under /mnt/centos and /mnt/rocky 
-(these pathnames are hardcoded into the script).
+Offline mode has received minimal testing and only for the CentOS 8.5 -> Rocky 8.5/8.6
+migration from a minimal (straight from installation or fully updated) system using a mounted
+CentOS 8.5 DVD ISO and a Rocky 8.5/8.6 ISO as offline repositories, mounted respectively
+under /mnt/centos and /mnt/rocky - these local pathnames are hardcoded into (and forced by) the
+script for the CentOS case, while for other distros you will need to manually define local
+repo paths under /etc/yum.repos.d/ before launching the script.
+Please make sure that you do not inadvertently swap the former-distro/Rocky local repositories
+when mounting ISOs.
+Package downgrades may happen, depending on the update status of the running distro and
+on the content of the local repositories (e.g. using a Rocky 8.5 mounted ISO for offline
+updating a CentOS 8.5 with all latest updates applied before EOL).
+Note that if you are disabling pre-migration updates then you will need only the base repositories'
+metadata (repodata subdir) for the currently running distro (can be copied from original
+installation ISO).
+If you installed packages from further repos of the running distro (devel, extras, ha, powertools)
+then you will need the same repos enabled and the corresponding local repos from Rocky
+available (under /mnt/rocky/{Extras,HA,PowerTools,Devel}) before starting the migration,
+otherwise make sure that those additional repos are disabled.
 
-#### Migration with updating disabled
+#### Migration with pre-updating disabled
 
-Disabling running system update before migration has been introduced as a
-convenience option for the offline conversion mode but it should be carefully
-tested on a non-production system before attempting it even in offline mode.
+Disabling system updates before migration has been introduced as a convenience option
+mainly for the offline migration mode but it should be carefully tested on a non-production
+system before attempting it even in offline mode.
 
 #### Custom replacements of default repositories
 
