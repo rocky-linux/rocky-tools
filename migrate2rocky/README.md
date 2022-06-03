@@ -64,38 +64,42 @@ sed -i -r \
 #### Migration in offline mode
 
 Offline mode has received minimal testing and only for the CentOS 8.5 -> Rocky 8.5/8.6
-migration from a minimal (straight from installation or fully updated) system using a mounted
-CentOS 8.5 DVD ISO and a Rocky 8.5/8.6 ISO as offline repositories, mounted respectively
-under /mnt/centos and /mnt/rocky - these local pathnames are hardcoded into (and forced by) the
-script for the CentOS case, while for other distros you will need to manually define local
-repo paths under /etc/yum.repos.d/ before launching the script.
-Please make sure that you do not inadvertently swap the former-distro/Rocky local repositories
+migration from a minimal (straight from installation or fully updated) system using
+CentOS 8.5 DVD and  Rocky 8.5/8.6 DVD ISOs as offline repositories, mounted respectively
+under /mnt/centos (hardcoded into and forced by the script only for the CentOS case - for other
+EL8 distros you will need to manually define local repo paths under /etc/yum.repos.d/ before
+launching the script) and /mnt/rocky (hardcoded into and always forced by the script) .
+
+Please make sure that you do not inadvertently swap the current-EL8/Rocky local repositories
 when mounting ISOs.
-Package downgrades may happen, depending on the update status of the running distro and
-on the content of the local repositories (e.g. using a Rocky 8.5 mounted ISO for offline
-updating a CentOS 8.5 with all latest updates applied before EOL).
+
+Package downgrades may happen, depending on the update status of the running EL8 distro and
+on the content of the local repositories (e.g. using a Rocky 8.5 DVD ISO for offline
+migrating a CentOS 8.5 with all latest-before-EOL updates applied).
 Note that if you are disabling pre-migration updates then you will need only the base repositories'
-metadata (repodata subdir) for the currently running distro (can be copied from original
+metadata (repodata subdir) for the currently running EL8 (can be copied from original
 installation ISO).
-If you installed packages from further repos of the running distro (devel, extras, ha, powertools)
-then you will need the same repos enabled and the corresponding local repos from Rocky
-available (under /mnt/rocky/{Extras,HA,PowerTools,Devel}) before starting the migration,
+
+If you installed packages from further repos of the running EL8 distro (devel, extras, ha, powertools)
+then you will need those same repos enabled and their Rocky equivalents locally available 
+(under /mnt/rocky/{Extras,HA,PowerTools,Devel}) before starting the migration,
 otherwise make sure that those additional repos are disabled.
 
 #### Migration with pre-updating disabled
 
-Disabling system updates before migration has been introduced as a convenience option
-mainly for the offline migration mode but it should be carefully tested on a non-production
-system before attempting it even in offline mode.
+Disabling system updates before migration has been introduced and tested only as a convenience
+option for the offline migration mode but it should be carefully tested on a non-production
+system before attempting it.
 
 #### Custom replacements of default repositories
 
 This script expects the **original repository configuration being present, as
 well as enabled** (i.e. for CentOS the `baseos` repo configuration in the
 `/etc/yum.repos.d/CentOS-Linux-BaseOS.repo` file has to be present and enabled).
-Offline mode will require at least the repository metadata for the `baseos` and
-`appstream` repos to be available (for CentOS under /mnt/centos/{BaseOS,AppStream}
-which can be copied or mounted from a CentOS ISO).
+Offline mode will require at least the repository metadata (repodata subdir) for
+the `baseos` and `appstream` repos to be available (for CentOS their path is
+hardcoded as /mnt/centos/{BaseOS,AppStream} and can be copied or mounted from a
+CentOS ISO).
 Also make sure that there are **no other repositories** which could interfere
 with the original configuration.
 
