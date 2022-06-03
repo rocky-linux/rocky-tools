@@ -65,10 +65,11 @@ sed -i -r \
 
 Offline mode has received minimal testing and only for the CentOS 8.5 -> Rocky 8.5/8.6
 migration from a minimal (straight from installation or fully updated) system using
-CentOS 8.5 DVD and  Rocky 8.5/8.6 DVD ISOs as offline repositories, mounted respectively
+CentOS 8.5 DVD and Rocky 8.5/8.6 DVD ISOs as offline repositories, mounted respectively
 under /mnt/centos (hardcoded into and forced by the script only for the CentOS case - for other
 EL8 distros you will need to manually define local repo paths under /etc/yum.repos.d/ before
-launching the script) and /mnt/rocky (hardcoded into and always forced by the script) .
+launching the script) and /mnt/rocky (hardcoded into and always forced by the script - please
+note that you will also need the Rocky GPG key in /mnt/RPM-GPG-KEY-rockyofficial) .
 
 Please make sure that you do not inadvertently swap the current-EL8/Rocky local repositories
 when mounting ISOs.
