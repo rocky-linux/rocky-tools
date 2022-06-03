@@ -515,6 +515,10 @@ safednf () (
 # with a good one from our mirror of CentOS vault.
 #
 check_repourl () {
+    if [[ $offline_mode ]]; then
+        return 1
+    fi
+
     repoinfo "$1" || return
     if [[ ! ${repoinfo_results[Repo-baseurl]} ]]; then
 	return 1
@@ -524,11 +528,7 @@ check_repourl () {
     IFS=, read -r -a urls <<<"${repoinfo_results[Repo-baseurl]}"
     local u
     for u in "${urls[@]##*( )}"; do
-        if [[ $offline_mode ]]; then
-            return 1
-        else
-            curl -sfLI "${u%% *}repodata/repomd.xml" > /dev/null && return
-        fi
+	curl -sfLI "${u%% *}repodata/repomd.xml" > /dev/null && return
     done
     return "$(( $? ? $? : 1 ))"
 }
@@ -1103,7 +1103,7 @@ EOF
             dist_repourl_offline+=(
                 "--enablerepo=$k"
             )
-	    for r in "${!pkg_repo_map[@]}"; do
+            for r in "${!pkg_repo_map[@]}"; do
                 if [[ $r = $k ]]; then
                     dist_repourl_offline+=(
                         "--setopt=$r.mirrorlist="
@@ -1112,7 +1112,7 @@ EOF
                         "--setopt=$r.baseurl=${rocky_repo_offline_baseurls[$r]}"
                     )
                 fi
-	    done
+            done
         done
     fi
 
