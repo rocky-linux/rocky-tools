@@ -1,13 +1,13 @@
 #!/bin/bash
 # 
-# migrate2rocky - Migrate another EL8 distribution to RockyLinux 9.
+# migrate2rocky9 - Migrate another EL8 distribution to RockyLinux 9.
 # By: Peter Ajamian <peter@pajamian.dhs.org>
 # Adapted from centos2rocky.sh by label <label@rockylinux.org>
 #
 # The latest version of this script can be found at:
 # https://github.com/rocky-linux/rocky-tools
 #
-# Copyright (c) 2021 Rocky Enterprise Software Foundation
+# Copyright (c) 2022 Rocky Enterprise Software Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -128,7 +128,7 @@ errmsg () {
     printf '%s%s%s' "$errcolor" "$msg" "$nocolor" >&4
 }
 
-infomsg 'migrate2rocky - Begin logging at %(%c)T.\n\n' -1
+infomsg 'migrate2rocky9 - Begin logging at %(%c)T.\n\n' -1
 
 export LC_ALL=C.UTF-8
 unset LANGUAGE
@@ -138,8 +138,8 @@ SUPPORTED_MAJOR="9"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
 ARCH=$(arch)
 
-gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-rockyofficial"
-gpg_key_sha512="88fe66cf0a68648c2371120d56eb509835266d9efdf7c8b9ac8fc101bdf1f0e0197030d3ea65f4b5be89dc9d1ef08581adb068815c88d7b1dc40aa1c32990f6a"
+gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9"
+gpg_key_sha512="ead288baa8daad12d6f340f1a392d47413f8614425673fe310e82d4ead94ca15eb2e1329b30389e6a7f93dd406da255df410306cffd7a1a24f0dfb4c8e23fbfe"
 
 sm_ca_dir=/etc/rhsm/ca
 unset tmp_sm_ca_dir
@@ -183,6 +183,8 @@ stream_always_replace=(
 )
 
 # Directory to required space in MiB
+# Note this is based on Rocky Linux 8 numbers.  We will use these until we can
+# get realistic numbers for Rocky 9.
 declare -A dir_space_map
 dir_space_map=(
     [/usr]=250
@@ -261,19 +263,19 @@ pre_check () {
     if [[ -e /etc/rhsm/ca/katello-server-ca.pem ]]; then
 # shellcheck disable=SC2026
         exit_message \
-'Migration from Katello-modified systems is not supported by migrate2rocky. '\
+'Migration from Katello-modified systems is not supported by migrate2rocky9. '\
 'See the README file for details.'
     fi
     if [[ -e /etc/salt/minion.d/susemanager.conf ]]; then
 # shellcheck disable=SC2026
         exit_message \
 'Migration from Uyuni/SUSE Manager-modified systems is not supported by '\
-'migrate2rocky. See the README file for details.'
+'migrate2rocky9. See the README file for details.'
     fi
 
     dnf -y check || exit_message \
 'Errors found in dnf/rpm database.  Please correct before running '\
-'migrate2rocky.'
+'migrate2rocky9.'
 
     # Get available space to compare to requirements.
     # If the stock kernel is not installed we don't require space in /boot
@@ -580,7 +582,6 @@ collect_system_info () {
     # distro.
     declare -g -a module_excludes
     module_excludes=(
-        libselinux-python:2.8
     )
 
     # Some OracleLinux modules have stream names of ol9 instead of rhel9 and ol
@@ -601,10 +602,10 @@ collect_system_info () {
     pkg_repo_map=(
         [baseos]=rootfiles.noarch
         [appstream]=apr-util-ldap.$ARCH
-        [ha]=pacemaker-doc.noarch
-        [powertools]=libaec-devel.$ARCH
+        [highavailability]=pacemaker-doc.noarch
+        [crb]=python3-mpich.$ARCH
         [extras]=epel-release.noarch
-        [devel]=quota-devel.$ARCH
+#        [devel]=quota-devel.$ARCH
     )
 
     dist_id=$(os-release ID)
@@ -621,15 +622,6 @@ collect_system_info () {
     local -A dist_repourl_map
     dist_repourl_map=(
     )
-
-    # In case migration is attempted from very old CentOS (before the repository
-    # names were lowercased)
-    for name in BaseOS AppStream PowerTools Devel; do
-	dist_repourl_map["centos:$name"]=${dist_repourl_map["centos:${name,,}"]}
-    done
-
-    # HighAvailability is different again
-    dist_repourl_map[centos:HighAvailability]=${dist_repourl_map[centos:ha]}
 
     # We need a list of enabled repositories
     local -a enabled_repos=()
@@ -715,7 +707,8 @@ collect_system_info () {
     provides_pkg_map=(
         [rocky-backgrounds]=system-backgrounds
         [rocky-indexhtml]=redhat-indexhtml
-        [rocky-repos]="$baseos_filename"
+#        [rocky-repos]="$baseos_filename"
+	[rocky-repos]=system-repos
         [rocky-logos]=system-logos
         [rocky-logos-httpd]=system-logos-httpd
         [rocky-logos-ipa]=system-logos-ipa
