@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# migrate2rocky - Migrate another EL8 distribution to RockyLinux 8.
+# migrate2rocky - Migrate another EL8 distribution to RockyLinux 9.
 # By: Peter Ajamian <peter@pajamian.dhs.org>
 # Adapted from centos2rocky.sh by label <label@rockylinux.org>
 #
@@ -134,7 +134,7 @@ export LC_ALL=C.UTF-8
 unset LANGUAGE
 shopt -s nullglob
 
-SUPPORTED_MAJOR="8"
+SUPPORTED_MAJOR="9"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
 ARCH=$(arch)
 
@@ -307,7 +307,7 @@ pre_check () {
     fi
 }
 
-# All of the binaries used by this script are available in a EL8 minimal install
+# All of the binaries used by this script are available in a EL9 minimal install
 # and are in /bin, so we should not encounter a system where the script doesn't
 # work unless it's severely broken.  This is just a simple check that will cause
 # the script to bail if any expected system utilities are missing.
@@ -316,7 +316,7 @@ bin_check() {
     if [[ $(os-release PLATFORM_ID) != "$SUPPORTED_PLATFORM" ]]; then
 # shellcheck disable=SC2026
         exit_message \
-'This script must be run on an EL8 distribution.  Migration from other '\
+'This script must be run on an EL9 distribution.  Migration from other '\
 'distributions is not supported.'
     fi
 
@@ -583,11 +583,11 @@ collect_system_info () {
         libselinux-python:2.8
     )
 
-    # Some OracleLinux modules have stream names of ol8 instead of rhel8 and ol
+    # Some OracleLinux modules have stream names of ol9 instead of rhel9 and ol
     # instead of rhel.  This is a map that does a glob match and replacement.
     local -A module_glob_map
     module_glob_map=(
-        ['%:ol8']=:rhel8
+        ['%:ol9']=:rhel9
         ['%:ol']=:rhel
     );
 
@@ -615,18 +615,11 @@ collect_system_info () {
 
     PRETTY_NAME=$(os-release PRETTY_NAME)
     infomsg '%s' \
-        "Preparing to migrate $PRETTY_NAME to Rocky Linux 8."$'\n\n'
+        "Preparing to migrate $PRETTY_NAME to Rocky Linux 9."$'\n\n'
 
     # Check to see if we need to change the repourl on any system repositories
-    # (CentOS 8)
     local -A dist_repourl_map
     dist_repourl_map=(
-	[centos:baseos]=https://dl.rockylinux.org/vault/centos/8.5.2111/BaseOS/$ARCH/os/
-	[centos:appstream]=https://dl.rockylinux.org/vault/centos/8.5.2111/AppStream/$ARCH/os/
-	[centos:ha]=https://dl.rockylinux.org/vault/centos/8.5.2111/HighAvailability/$ARCH/os/
-	[centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
-	[centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
-	[centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
     )
 
     # In case migration is attempted from very old CentOS (before the repository
@@ -679,8 +672,8 @@ collect_system_info () {
     done
 
     printf '%s\n' '' '' \
-"Found the following repositories which map from $PRETTY_NAME to Rocky Linux 8:"
-    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(
+"Found the following repositories which map from $PRETTY_NAME to Rocky Linux 9:"
+    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 9" < <(
         for r in "${!repo_map[@]}"; do
             printf '%s\t%s\n' "${repo_map[$r]}" "$r"
         done
@@ -758,8 +751,8 @@ $'because continuing with the migration could cause further damage to system.'
 # shellcheck disable=SC2140
     printf '%s\n' '' '' \
 "Found the following system packages which map from $PRETTY_NAME to Rocky "\
-"Linux 8:"
-    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 8" < <(
+"Linux 9:"
+    column -t -s $'\t' -N "$PRETTY_NAME,Rocky Linux 9" < <(
         for p in "${!pkg_map[@]}"; do
             printf '%s\t%s\n' "${pkg_map[$p]}" "$p"
         done
@@ -798,7 +791,7 @@ $'because continuing with the migration could cause further damage to system.'
 
 # shellcheck disable=SC2140
     printf '%s\n' '' \
-"We will replace the following $PRETTY_NAME packages with their Rocky Linux 8 "\
+"We will replace the following $PRETTY_NAME packages with their Rocky Linux 9 "\
 "equivalents"
     column -t -s $'\t' -N "Packages to be Removed,Packages to be Installed" < <(
         for p in "${!installed_pkg_map[@]}"; do
@@ -972,8 +965,8 @@ package_swaps() {
         sed -i \
             -e 's/^\[/['"$stream_prefix"'/' \
             -e 's|^mirrorlist=|#mirrorlist=|' \
-            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/8-stream/|' \
-            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/8-stream/|' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/9-stream/|' \
+            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/9-stream/|' \
             "${repos_files[@]}"
     fi
 
