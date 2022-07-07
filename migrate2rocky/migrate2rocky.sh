@@ -145,6 +145,7 @@ sm_ca_dir=/etc/rhsm/ca
 unset tmp_sm_ca_dir
 
 # all repos must be signed with the same key given in $gpg_key_url
+declare -A rocky_repo_offline_baseurls=()
 declare -A repo_urls
 repo_urls=(
     [rockybaseos]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
@@ -514,6 +515,10 @@ safednf () (
 # with a good one from our mirror of CentOS vault.
 #
 check_repourl () {
+    if [[ $offline_mode ]]; then
+        return 1
+    fi
+
     repoinfo "$1" || return
     if [[ ! ${repoinfo_results[Repo-baseurl]} ]]; then
 	return 1
@@ -620,14 +625,25 @@ collect_system_info () {
     # Check to see if we need to change the repourl on any system repositories
     # (CentOS 8)
     local -A dist_repourl_map
-    dist_repourl_map=(
-	[centos:baseos]=https://dl.rockylinux.org/vault/centos/8.5.2111/BaseOS/$ARCH/os/
-	[centos:appstream]=https://dl.rockylinux.org/vault/centos/8.5.2111/AppStream/$ARCH/os/
-	[centos:ha]=https://dl.rockylinux.org/vault/centos/8.5.2111/HighAvailability/$ARCH/os/
-	[centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
-	[centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
-	[centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
-    )
+    if [[ $offline_mode ]]; then
+        dist_repourl_map=(
+            [centos:baseos]=file:///mnt/centos/BaseOS/
+            [centos:appstream]=file:///mnt/centos/AppStream/
+            [centos:ha]=file:///mnt/centos/HighAvailability/
+            [centos:powertools]=file:///mnt/centos/PowerTools/
+            [centos:extras]=file:///mnt/centos/extras/
+            [centos:devel]=file:///mnt/centos/Devel/
+        )
+    else
+        dist_repourl_map=(
+            [centos:baseos]=https://dl.rockylinux.org/vault/centos/8.5.2111/BaseOS/$ARCH/os/
+            [centos:appstream]=https://dl.rockylinux.org/vault/centos/8.5.2111/AppStream/$ARCH/os/
+            [centos:ha]=https://dl.rockylinux.org/vault/centos/8.5.2111/HighAvailability/$ARCH/os/
+            [centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
+            [centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
+            [centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
+        )
+    fi
 
     # In case migration is attempted from very old CentOS (before the repository
     # names were lowercased)
@@ -642,6 +658,7 @@ collect_system_info () {
     local -a enabled_repos=()
     declare -g -A enabled_repo_check=()
     declare -g -a dist_repourl_swaps=()
+    declare -g -a dist_repourl_offline=()
     readarray -s 1 -t enabled_repos < <(dnf -q -y repolist --enabled)
     for r in "${enabled_repos[@]}"; do
 	enabled_repo_check[${r%% *}]=1
@@ -894,7 +911,7 @@ $'because continuing with the migration could cause further damage to system.'
 }
 
 convert_info_dir=/root/convert
-unset convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi \
+unset dont_update offline_mode convert_to_rocky reinstall_all_rpms verify_all_rpms update_efi \
     container_macros
 
 usage() {
@@ -902,7 +919,9 @@ usage() {
       "Usage: ${0##*/} [OPTIONS]" \
       '' \
       'Options:' \
+      '-d Do not update before conversion' \
       '-h Display this help' \
+      '-o Work in offline mode' \
       '-r Convert to rocky' \
       '-V Verify switch' \
       '   !! USE WITH CAUTION !!'
@@ -972,8 +991,8 @@ package_swaps() {
         sed -i \
             -e 's/^\[/['"$stream_prefix"'/' \
             -e 's|^mirrorlist=|#mirrorlist=|' \
-            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/8-stream/|' \
-            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/8-stream/|' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl='"${stream_mirror_baseurl}"'|' \
+            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl='"${stream_vault_baseurl}"'|' \
             "${repos_files[@]}"
     fi
 
@@ -1073,6 +1092,30 @@ EOF
         done
     fi
 
+    # Offline
+    # Map Rocky's repos to offline local repos - temporarily disable a repo if its equivalent was disabled before migration
+    if [[ $offline_mode ]]; then
+        infomsg $'Ensuring offline repos are configured before the package swap\n'
+        dist_repourl_offline+=(
+            "--disablerepo=*"
+        )
+        for k in "${!enabled_repo_check[@]}"; do
+            dist_repourl_offline+=(
+                "--enablerepo=$k"
+            )
+            for r in "${!pkg_repo_map[@]}"; do
+                if [[ $r = $k ]]; then
+                    dist_repourl_offline+=(
+                        "--setopt=$r.mirrorlist="
+                        "--setopt=$r.metalink="
+                        "--setopt=$r.baseurl="
+                        "--setopt=$r.baseurl=${rocky_repo_offline_baseurls[$r]}"
+                    )
+                fi
+            done
+        done
+    fi
+
     # Distrosync
     infomsg $'Ensuring repos are enabled before the package swap\n'
     safednf -y --enableplugin=config_manager config-manager \
@@ -1097,23 +1140,23 @@ EOF
 
     if (( ${#disable_modules[@]} )); then
         infomsg $'Disabling modules\n\n'
-        safednf -y module disable "${disable_modules[@]}" ||
+        safednf -y "${dist_repourl_offline[@]}" module disable "${disable_modules[@]}" ||
             exit_message "Can't disable modules ${disable_modules[*]}"
     fi
 
     if (( ${#enabled_modules[@]} )); then
         infomsg $'Enabling modules\n\n'
-        safednf -y module enable "${enabled_modules[@]}" ||
+        safednf -y "${dist_repourl_offline[@]}" module enable "${enabled_modules[@]}" ||
                 exit_message "Can't enable modules ${enabled_modules[*]}"
     fi
 
     # Make sure that excluded modules are disabled.
     infomsg $'Disabling excluded modules\n\n'
-    safednf -y module disable "${module_excludes[@]}" ||
+    safednf -y "${dist_repourl_offline[@]}" module disable "${module_excludes[@]}" ||
             exit_message "Can't disable modules ${module_excludes[*]}"
 
     infomsg $'\nSyncing packages\n\n'
-    dnf -y distro-sync || exit_message "Error during distro-sync."
+    dnf -y "${dist_repourl_offline[@]}" distro-sync || exit_message "Error during distro-sync."
 
     # Disable Stream repos.
     if (( ${#installed_sys_stream_repos_pkgs[@]} ||
@@ -1125,7 +1168,7 @@ $'Failed to disable CentOS Stream repos, please check and disable manually.\n'
 
         if (( ${#stream_always_replace[@]} )) &&
             [[ $(saferpm -qa "${stream_always_replace[@]}") ]]; then
-            safednf -y distro-sync "${stream_always_replace[@]}" ||
+            safednf -y "${dist_repourl_offline[@]}" distro-sync "${stream_always_replace[@]}" ||
                 exit_message "Error during distro-sync."
         fi
 
@@ -1172,7 +1215,7 @@ EOF
     fi
 
     if (( ${#always_install[@]} )); then
-        safednf -y install "${always_install[@]}" || exit_message \
+        safednf -y "${dist_repourl_offline[@]}" install "${always_install[@]}" || exit_message \
             "Error installing required packages: ${always_install[*]}"
     fi
 
@@ -1270,11 +1313,17 @@ establish_gpg_trust () {
 ## End actual work
 
 noopts=0
-while getopts "hrVR" option; do
+while getopts "dhorV" option; do
   (( noopts++ ))
   case "$option" in
+    d)
+      dont_update=true
+      ;;
     h)
       usage
+      ;;
+    o)
+      offline_mode=true
       ;;
     r)
       convert_to_rocky=true
@@ -1292,6 +1341,27 @@ if (( ! noopts )); then
     usage
 fi
 
+if [[ $offline_mode ]]; then
+  gpg_key_url="file:///mnt/RPM-GPG-KEY-rockyofficial"
+  repo_urls=(
+    [rockybaseos]="file:///mnt/rocky/BaseOS/"
+    [rockyappstream]="file:///mnt/rocky/AppStream/"
+  )
+  stream_mirror_baseurl="file:///mnt/centos-stream/"
+  stream_vault_baseurl="file:///mnt/centos-stream-vault/"
+  rocky_repo_offline_baseurls=(
+    [baseos]="file:///mnt/rocky/BaseOS/"
+    [appstream]="file:///mnt/rocky/AppStream/"
+    [ha]="file:///mnt/rocky/HA/"
+    [powertools]="file:///mnt/rocky/PowerTools/"
+    [extras]="file:///mnt/rocky/Extras/"
+    [devel]="file:///mnt/rocky/Devel/"
+  )
+else
+  stream_mirror_baseurl="http://mirror.centos.org/centos/8-stream/"
+  stream_vault_baseurl="https://vault.centos.org/centos/8-stream/"
+fi
+
 pre_setup
 trap exit_clean EXIT
 pre_check
@@ -1305,7 +1375,11 @@ fi
 if [[ $convert_to_rocky ]]; then
     collect_system_info
     establish_gpg_trust
-    pre_update
+    if [[ $dont_update ]]; then
+      infomsg $'\nSkipping update as requested.\n'
+    else
+      pre_update
+    fi
     package_swaps
 fi
 

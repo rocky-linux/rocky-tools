@@ -7,7 +7,9 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 ```bash
 ./migrate2rocky.sh -h
+├── -d   # --> Do not update before conversion
 ├── -h   # --> Display this help
+├── -o   # --> Work in offline mode
 ├── -r   # --> Convert to Rocky
 └── -V   # --> Verify switch
 
@@ -17,8 +19,9 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 ### Disk Space Requirements
 
 Please note the following disk space requirements.  These requirements may vary
-from one system to another.  Failure to have adequate disk space available may
-result in migrate2rocky leaving the system in an unstable state:
+from one system to another.  Offline mode may require further space for rpm
+packages and repository metadata.  Failure to have adequate disk space available
+may result in migrate2rocky leaving the system in an unstable state:
 
 ```
 /usr   250M
@@ -58,11 +61,46 @@ sed -i -r \
     /etc/yum.repos.d/CentOS-*.repo
 ```
 
+#### Migration in offline mode
+
+Offline mode has received minimal testing and only for the CentOS 8.5 -> Rocky 8.5/8.6
+migration from a minimal (straight from installation or fully updated) system using
+CentOS 8.5 DVD and Rocky 8.5/8.6 DVD ISOs as offline repositories, mounted respectively
+under /mnt/centos (hardcoded into and forced by the script only for the CentOS case - for other
+EL8 distros you will need to manually define local repo paths under /etc/yum.repos.d/ before
+launching the script) and /mnt/rocky (hardcoded into and always forced by the script - please
+note that you will also need the Rocky GPG key in /mnt/RPM-GPG-KEY-rockyofficial) .
+
+Please make sure that you do not inadvertently swap the current-EL8/Rocky local repositories
+when mounting ISOs.
+
+Package downgrades may happen, depending on the update status of the running EL8 distro and
+on the content of the local repositories (e.g. using a Rocky 8.5 DVD ISO for offline
+migrating a CentOS 8.5 with all latest-before-EOL updates applied).
+Note that if you are disabling pre-migration updates then you will need only the base repositories'
+metadata (repodata subdir) for the currently running EL8 (can be copied from original
+installation ISO).
+
+If you installed packages from further repos of the running EL8 distro (devel, extras, ha, powertools)
+then you will need those same repos enabled and their Rocky equivalents locally available 
+(under /mnt/rocky/{Extras,HA,PowerTools,Devel}) before starting the migration,
+otherwise make sure that those additional repos are disabled.
+
+#### Migration with pre-updating disabled
+
+Disabling system updates before migration has been introduced and tested only as a convenience
+option for the offline migration mode but it should be carefully tested on a non-production
+system before attempting it.
+
 #### Custom replacements of default repositories
 
 This script expects the **original repository configuration being present, as
 well as enabled** (i.e. for CentOS the `baseos` repo configuration in the
 `/etc/yum.repos.d/CentOS-Linux-BaseOS.repo` file has to be present and enabled).
+Offline mode will require at least the repository metadata (repodata subdir) for
+the `baseos` and `appstream` repos to be available (for CentOS their path is
+hardcoded as /mnt/centos/{BaseOS,AppStream} and can be copied or mounted from a
+CentOS ISO).
 Also make sure that there are **no other repositories** which could interfere
 with the original configuration.
 
