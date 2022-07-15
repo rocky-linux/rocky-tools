@@ -133,7 +133,7 @@ ipa-server-upgrade --skip-version-check
 
 This is because the centos-release-* packages that contain the .repo files for
 the individual repositories depend on centos-release.  Storage sig and related
-release packages should be available soon from RockyLinux.  In the meantine you
+release packages should be available soon from RockyLinux.  In the meantime you
 can use a command like the following to install the .repo files and continue to
 use the repository from CentOS (note please substitute the URL to the release
 package for the repo that you need):
