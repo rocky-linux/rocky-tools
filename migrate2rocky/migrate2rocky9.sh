@@ -1093,9 +1093,11 @@ EOF
     fi
 
     # Make sure that excluded modules are disabled.
-    infomsg $'Disabling excluded modules\n\n'
-    safednf -y module disable "${module_excludes[@]}" ||
+    if (( ${#module_excludes[@]} )); then
+	infomsg $'Disabling excluded modules\n\n'
+	safednf -y module disable "${module_excludes[@]}" ||
             exit_message "Can't disable modules ${module_excludes[*]}"
+    fi
 
     infomsg $'\nSyncing packages\n\n'
     dnf -y distro-sync || exit_message "Error during distro-sync."
