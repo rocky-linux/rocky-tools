@@ -1100,7 +1100,8 @@ EOF
     fi
 
     infomsg $'\nSyncing packages\n\n'
-    dnf -y distro-sync || exit_message "Error during distro-sync."
+    dnf -y --allow-erasing distro-sync ||
+        exit_message "Error during distro-sync."
 
     # Disable Stream repos.
     if (( ${#installed_sys_stream_repos_pkgs[@]} ||
