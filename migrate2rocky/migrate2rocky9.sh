@@ -707,8 +707,7 @@ collect_system_info () {
     provides_pkg_map=(
         [rocky-backgrounds]=system-backgrounds
         [rocky-indexhtml]=redhat-indexhtml
-#        [rocky-repos]="$baseos_filename"
-	[rocky-repos]=system-repos
+        [rocky-repos]="$baseos_filename"
         [rocky-logos]=system-logos
         [rocky-logos-httpd]=system-logos-httpd
         [rocky-logos-ipa]=system-logos-ipa
