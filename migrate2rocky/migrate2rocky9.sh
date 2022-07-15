@@ -1100,7 +1100,7 @@ EOF
     fi
 
     infomsg $'\nSyncing packages\n\n'
-    dnf -y --allow-erasing distro-sync ||
+    dnf -y --allowerasing distro-sync ||
         exit_message "Error during distro-sync."
 
     # Disable Stream repos.
