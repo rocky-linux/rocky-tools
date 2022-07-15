@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# migrate2rocky9 - Migrate another EL8 distribution to RockyLinux 9.
+# migrate2rocky9 - Migrate another EL9 distribution to RockyLinux 9.
 # By: Peter Ajamian <peter@pajamian.dhs.org>
 # Adapted from centos2rocky.sh by label <label@rockylinux.org>
 #
