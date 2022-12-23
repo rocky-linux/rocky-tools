@@ -13,6 +13,13 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 [!! USE WITH CAUTION !!]
 ```
+#### Use Mirror URLs of Rocky Linux
+
+```bash
+export ROCKY_REPO_MIRROR_URL="https://mirrors.example.org/rocky"
+
+./migrate2rocky.sh -r
+```
 
 ### Disk Space Requirements
 

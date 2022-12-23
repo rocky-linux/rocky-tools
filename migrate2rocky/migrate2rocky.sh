@@ -138,7 +138,11 @@ SUPPORTED_MAJOR="8"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
 ARCH=$(arch)
 
-gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-rockyofficial"
+# Use Mirror URLs of Rocky Linux from environment if set.
+ROCKY_REPO_DEFAULT_URL="https://dl.rockylinux.org/pub/rocky"
+ROCKY_REPO_URL="${ROCKY_REPO_MIRROR_URL:-"${ROCKY_REPO_DEFAULT_URL}"}"
+
+gpg_key_url="${ROCKY_REPO_URL}/RPM-GPG-KEY-rockyofficial"
 gpg_key_sha512="88fe66cf0a68648c2371120d56eb509835266d9efdf7c8b9ac8fc101bdf1f0e0197030d3ea65f4b5be89dc9d1ef08581adb068815c88d7b1dc40aa1c32990f6a"
 
 sm_ca_dir=/etc/rhsm/ca
@@ -147,8 +151,8 @@ unset tmp_sm_ca_dir
 # all repos must be signed with the same key given in $gpg_key_url
 declare -A repo_urls
 repo_urls=(
-    [rockybaseos]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
-    [rockyappstream]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
+    [rockybaseos]="${ROCKY_REPO_URL}/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
+    [rockyappstream]="${ROCKY_REPO_URL}/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
 )
 
 # These are additional packages that should always be installed.
@@ -1071,6 +1075,16 @@ EOF
                     "${rpm_map[$pkg]}" 2>/dev/null
             fi
         done
+    fi
+
+    # Replace mirror
+    if [[ $ROCKY_REPO_MIRROR_URL ]]; then 
+        local -a repo_files
+        readarray -t repo_files < <(rpm -ql rocky-repos | grep '\.repo$')
+        sed -e 's|^mirrorlist=|#mirrorlist=|g' \
+            -e "s|^#baseurl=http://dl.rockylinux.org/\$contentdir|baseurl=${ROCKY_REPO_URL}|g" \
+            -i.migrate2rocky \
+            "${repo_files[@]}"
     fi
 
     # Distrosync
