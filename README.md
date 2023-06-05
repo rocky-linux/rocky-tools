@@ -13,7 +13,7 @@ CentOS, CentOS Stream.
 
 Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
-## [mirrorsync](./mirror/) -- Mirror Script
+## [mirrorsync](./mirror/) -- Mirror Script and Configurations
 
-Example script for keeping a public or private mirror in sync.
+Example script and configuration notes for keeping a public or private mirror in sync.
 

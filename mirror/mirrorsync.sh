@@ -6,7 +6,7 @@
 # The latest version of this script can be found at:
 # https://github.com/rocky-linux/rocky-tools
 # 
-# Please read https://docs.rockylinux.org/en/rocky/8/guides/add_mirror_manager
+# Please read https://docs.rockylinux.org/guides/mirror_management/add_mirror_manager/
 # for further information on setting up a Rocky mirror.
 #
 # Copyright (c) 2021 Rocky Enterprise Software Foundation
@@ -41,6 +41,8 @@ rsync_run(){
 }
 
 # You can change v to q if you do not want detailed logging
+# You may also add additional excludes if you don't want to provide certain
+# repositories or architectures.
 opts=(-vrlptDSH --exclude="*.~tmp~" --delete-delay --delay-updates)
 
 # Please use a mirror geographically close to you for initial sync,
