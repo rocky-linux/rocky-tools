@@ -31,3 +31,4 @@ jobs:
           shellcheck migrate2rocky/migrate2rocky.sh
           shellcheck migrate2rocky/migrate2rocky9.sh
           shellcheck mirror/mirrorsync.sh
+	  shellcheck getsrc/getsrc.sh
