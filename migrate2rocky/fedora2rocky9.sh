@@ -1,5 +1,6 @@
 #!/bin/bash
 # 
+# fedora2rocky9 - Migrate Fedora distribution to RockyLinux 9, based on migrate2rocky9
 # migrate2rocky9 - Migrate another EL9 distribution to RockyLinux 9.
 # By: Peter Ajamian <peter@pajamian.dhs.org>
 # Adapted from centos2rocky.sh by label <label@rockylinux.org>
@@ -135,7 +136,8 @@ unset LANGUAGE
 shopt -s nullglob
 
 SUPPORTED_MAJOR="9"
-SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
+SUPPORTED_MAJOR_FEDORA="36"
+SUPPORTED_PLATFORM="platform:f$SUPPORTED_MAJOR_FEDORA"
 ARCH=$(arch)
 
 gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9"
@@ -705,18 +707,24 @@ collect_system_info () {
     declare -g -A pkg_map provides_pkg_map
     declare -g -a addl_provide_removes addl_pkg_removes
     provides_pkg_map=(
-        [rocky-backgrounds]=system-backgrounds
-        [rocky-indexhtml]=redhat-indexhtml
+        [rocky-backgrounds]="f${SUPPORTED_MAJOR_FEDORA}-backgrounds-gnome"
+        [rocky-indexhtml]=
         [rocky-repos]="$baseos_filename"
-        [rocky-logos]=system-logos
-        [rocky-logos-httpd]=system-logos-httpd
-        [rocky-logos-ipa]=system-logos-ipa
-        [rocky-gpg-keys]="$baseos_gpgkey"
-        [rocky-release]=system-release
+        [rocky-logos]=fedora-logos
+        [rocky-logos-httpd]=fedora-logos-httpd
+        [rocky-logos-ipa]=fedora-logos-classic
+        [rocky-gpg-keys]=fedora-gpg-keys
+        [rocky-release]=fedora-release
     )
     addl_provide_removes=(
         redhat-release
         redhat-release-eula
+        fedora-release-common
+        fedora-release-identity-basic
+        fedora-repos-modular
+        fedora-gpg-keys
+        fedora-release
+        fedora-repos
     )
 
     # Check to make sure that we don't already have a full or partial
@@ -1099,9 +1107,29 @@ EOF
             exit_message "Can't disable modules ${module_excludes[*]}"
     fi
 
+    infomsg $'Initial distro sync of packages, expect an error at this time, on amd/intel gpu firmware\n'
+    dnf -y --allowerasing distro-sync
+
+    infomsg $'Removing conflicting packages to linux-firmware\n'
+    dnf -y downgrade dbus*
+    dnf -y install systemd --allowerasing --best
+    dnf -y remove amd-gpu-firmware intel-gpu-firmware
+    dnf clean packages
+
     infomsg $'\nSyncing packages\n\n'
     dnf -y --allowerasing distro-sync ||
         exit_message "Error during distro-sync."
+
+
+    infomsg $'\Cleanup the remaining fedora packages\n\n'
+    # Get a list of remaining fedora packages"
+    fc_pkgs=$(dnf list installed | grep "fc${SUPPORTED_MAJOR_FEDORA}" | awk '{print $1}')
+    # Remove fedora package one at a time, based on the list.
+    # The kernel-core package cause an issue, which done this way instead.
+    for fc_pkg in $fc_pkgs; do
+        dnf remove -y "$fc_pkg"
+    done
+    # dnf remove -y "$fc_pkgs" -> simpler supossedly
 
     # Disable Stream repos.
     if (( ${#installed_sys_stream_repos_pkgs[@]} ||
