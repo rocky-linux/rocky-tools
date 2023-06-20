@@ -17,3 +17,7 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 Example script and configuration notes for keeping a public or private mirror in sync.
 
+## [fedora2rocky9](./fedora2rocky9/) -- Conversion Script 
+
+Running this script will convert an existing Fedora 3x (36, tested) system to Rocky Linux 9.
+(based on migrate2rocky9)
