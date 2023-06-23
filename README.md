@@ -17,3 +17,10 @@ Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
 
 Example script and configuration notes for keeping a public or private mirror in sync.
 
+## [gcoarchive](./gcoarchive/) -- Mirrors git.centos.org and sources
+
+Scripts that help clone git.centos.org repos based on a list provided and its
+accompanying dist-git sources. This assumes a /var/www/html/sources format for
+sources.
+
+Only clones 8 and 9. Does not clone sig content.
