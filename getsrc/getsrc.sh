@@ -27,6 +27,7 @@ remotes=(
     '@(ssh://git@|http?(s)://)git.centos.org/*'
     '@(ssh://git@|http?(s)://)gitlab.com[:/]redhat/centos-stream/*'
     '@(ssh://git@|http?(s)://)src.fedoraproject.org/*'
+    '@(git@|http?(s)://)github.com[:/]openela-main/*'
 )
 
 # These are branch names that will be glob-matched to to the lookasides above.
