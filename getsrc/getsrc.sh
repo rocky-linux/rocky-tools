@@ -16,6 +16,7 @@ https://sources.build.resf.org/%HASH%
 https://git.centos.org/sources/%PKG%/%BRANCH%/%HASH%
 https://sources.stream.centos.org/sources/rpms/%PKG%/%FILENAME%/%SHATYPE%/%HASH%/%FILENAME%
 https://src.fedoraproject.org/repo/pkgs/%PKG%/%FILENAME%/%SHATYPE%/%HASH%/%FILENAME%
+https://ax8edlmsvvfp.compat.objectstorage.us-phoenix-1.oraclecloud.com/mship-srpm1/%HASH%
 )
 
 # These are glob patterns.  They should be in the same order as the lookasides
@@ -26,6 +27,7 @@ remotes=(
     '@(ssh://git@|http?(s)://)git.centos.org/*'
     '@(ssh://git@|http?(s)://)gitlab.com[:/]redhat/centos-stream/*'
     '@(ssh://git@|http?(s)://)src.fedoraproject.org/*'
+    '@(git@|http?(s)://)github.com[:/]openela-main/*'
 )
 
 # These are branch names that will be glob-matched to to the lookasides above.
@@ -33,6 +35,7 @@ remotes=(
 branches=(
     r8
     r9
+    ''
     ''
     ''
     ''
