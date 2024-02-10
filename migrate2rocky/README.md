@@ -1,7 +1,16 @@
 migrate2rocky -- Conversion Script
 ===========
 
-Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
+These scripts are designed to aid a user to migrate from one Enterprise Linux
+system (such as CentOS, RHEL) to Rocky Linux.
+
+Use `migrate2rocky` to convert Enterprise Linux 8 systems to Rocky Linux 8.
+
+Use `migrate2rocky9` to convert Enterprise Linux 9 systems to Rocky Linux 9.
+
+**Upgrades are not supported.**
+
+**Migration from non-RHEL derived distributions such as Fedora is not supported.**
 
 ### Usage
 

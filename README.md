@@ -11,7 +11,9 @@ CentOS, CentOS Stream.
 
 ## [migrate2rocky](./migrate2rocky/) -- Conversion Script
 
-Running this script will convert an existing CentOS 8 system to Rocky Linux 8.
+Script(s) that that will convert existing Enterprise Linux systems to Rocky Linux
+on a single major version. `migrate2rocky` will convert EL 8 systems to Rocky Linux 8.
+`migrate2rocky9` will convert EL 9 systems to Rocky Linux 9.
 
 ## [mirrorsync](./mirror/) -- Mirror Script and Configurations
 
