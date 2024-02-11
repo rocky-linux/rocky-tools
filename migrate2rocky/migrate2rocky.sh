@@ -1224,6 +1224,9 @@ efi_check () {
     elif [[ -d /sys/firmware/efi/ ]]; then
         declare -g update_efi
         update_efi=true
+    else
+        declare -g update_bios
+        update_bios=true
     fi
 }
 
@@ -1317,6 +1320,8 @@ fi
 
 if [[ $update_efi && $convert_to_rocky ]]; then
     fix_efi
+elif [[ $update_bios && $convert_to_rocky ]]; then
+    grub2-mkconfig -o /boot/grub2/grub.cfg
 fi
 
 printf '\n\n\n'
