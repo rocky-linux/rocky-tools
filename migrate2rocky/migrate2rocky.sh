@@ -657,7 +657,7 @@ collect_system_info () {
 
     # HighAvailability is different again
     dist_repourl_map[centos:HighAvailability]=${dist_repourl_map[centos:ha]}
-    dist_repourl_map[centos-stream:HighAvailability]=${dist_repourl_map[centos-stream:rt]}
+    dist_repourl_map[centos-stream:HighAvailability]=${dist_repourl_map[centos-stream:ha]}
     dist_repourl_map[centos-stream:RealTime]=${dist_repourl_map[centos-stream:rt]}
 
 
