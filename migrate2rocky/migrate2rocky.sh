@@ -627,6 +627,12 @@ collect_system_info () {
 	[centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
 	[centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
 	[centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
+ 	[centos-stream:baseos]=https://dl.rockylinux.org/vault/centos/8-stream/BaseOS/$ARCH/os/
+	[centos-stream:appstream]=https://dl.rockylinux.org/vault/centos/8-stream/AppStream/$ARCH/os/
+	[centos-stream:ha]=https://dl.rockylinux.org/vault/centos/8-stream/HighAvailability/$ARCH/os/
+	[centos-stream:powertools]=https://dl.rockylinux.org/vault/centos/8-stream/PowerTools/$ARCH/os/
+	[centos-stream:extras]=https://dl.rockylinux.org/vault/centos/8-stream/extras/$ARCH/os/
+	[centos-stream:devel]=https://dl.rockylinux.org/vault/centos/8-stream/Devel/$ARCH/os/
     )
 
     # In case migration is attempted from very old CentOS (before the repository
@@ -637,6 +643,8 @@ collect_system_info () {
 
     # HighAvailability is different again
     dist_repourl_map[centos:HighAvailability]=${dist_repourl_map[centos:ha]}
+    dist_repourl_map[centos-stream:HighAvailability]=${dist_repourl_map[centos:ha]}
+
 
     # We need a list of enabled repositories
     local -a enabled_repos=()
