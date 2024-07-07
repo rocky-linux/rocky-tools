@@ -627,6 +627,26 @@ collect_system_info () {
 	[centos:powertools]=https://dl.rockylinux.org/vault/centos/8.5.2111/PowerTools/$ARCH/os/
 	[centos:extras]=https://dl.rockylinux.org/vault/centos/8.5.2111/extras/$ARCH/os/
 	[centos:devel]=https://dl.rockylinux.org/vault/centos/8.5.2111/Devel/$ARCH/os/
+	[centos-stream:appstream]=https://dl.rockylinux.org/vault/centos/8-stream/AppStream/$ARCH/os/
+  	[centos-stream:baseos]=https://dl.rockylinux.org/vault/centos/8-stream/BaseOS/$ARCH/os/
+	[centos-stream:ha]=https://dl.rockylinux.org/vault/centos/8-stream/HighAvailability/$ARCH/os/
+     	[centos-stream:nfv]=https://dl.rockylinux.org/vault/centos/8-stream/NFV/$ARCH/os/
+	[centos-stream:powertools]=https://dl.rockylinux.org/vault/centos/8-stream/PowerTools/$ARCH/os/
+       	[centos-stream:rt]=https://dl.rockylinux.org/vault/centos/8-stream/RT/$ARCH/os/
+       	[centos-stream:resilientstorage]=https://dl.rockylinux.org/vault/centos/8-stream/ResiliientStorage/$ARCH/os/
+       	[centos-stream:centosplus]=https://dl.rockylinux.org/vault/centos/8-stream/centosplus/$ARCH/os/
+       	[centos-stream:cloud]=https://dl.rockylinux.org/vault/centos/8-stream/cloud/$ARCH/os/
+       	[centos-stream:core]=https://dl.rockylinux.org/vault/centos/8-stream/core/$ARCH/os/
+ 	[centos-stream:extras]=https://dl.rockylinux.org/vault/centos/8-stream/extras/$ARCH/os/
+ 	[centos-stream:hyperscale]=https://dl.rockylinux.org/vault/centos/8-stream/hyperscale/$ARCH/os/
+ 	[centos-stream:isos]=https://dl.rockylinux.org/vault/centos/8-stream/isos/$ARCH/os/
+ 	[centos-stream:kmods]=https://dl.rockylinux.org/vault/centos/8-stream/kmods/$ARCH/os/
+ 	[centos-stream:messaging]=https://dl.rockylinux.org/vault/centos/8-stream/messaging/$ARCH/os/
+ 	[centos-stream:opstools]=https://dl.rockylinux.org/vault/centos/8-stream/opstools/$ARCH/os/
+ 	[centos-stream:storage]=https://dl.rockylinux.org/vault/centos/8-stream/storage/$ARCH/os/
+ 	[centos-stream:virt]=https://dl.rockylinux.org/vault/centos/8-stream/virt/$ARCH/os/
+ 	[centos-stream:debuginfo]=http://debuginfo.centos.org/8-stream/$ARCH/
+   	[centos-stream:extras-common]=https://dl.rockylinux.org/vault/centos/8-stream/extras/$ARCH/extras-common/
     )
 
     # In case migration is attempted from very old CentOS (before the repository
@@ -637,6 +657,9 @@ collect_system_info () {
 
     # HighAvailability is different again
     dist_repourl_map[centos:HighAvailability]=${dist_repourl_map[centos:ha]}
+    dist_repourl_map[centos-stream:HighAvailability]=${dist_repourl_map[centos-stream:ha]}
+    dist_repourl_map[centos-stream:RealTime]=${dist_repourl_map[centos-stream:rt]}
+
 
     # We need a list of enabled repositories
     local -a enabled_repos=()
@@ -972,8 +995,8 @@ package_swaps() {
         sed -i \
             -e 's/^\[/['"$stream_prefix"'/' \
             -e 's|^mirrorlist=|#mirrorlist=|' \
-            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=http://mirror.centos.org/centos/8-stream/|' \
-            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://vault.centos.org/centos/8-stream/|' \
+            -e 's|^#baseurl=http://mirror.centos.org/$contentdir/$stream/|baseurl=https://dl.rockylinux.org/vault/centos/8-stream/|' \
+            -e 's|^baseurl=http://vault.centos.org/$contentdir/$stream/|baseurl=https://dl.rockylinux.org/vault/centos/8-stream/|' \
             "${repos_files[@]}"
     fi
 
