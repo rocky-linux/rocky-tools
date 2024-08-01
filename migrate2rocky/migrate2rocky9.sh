@@ -718,6 +718,9 @@ collect_system_info () {
         redhat-release
         redhat-release-eula
     )
+    addl_pkg_removes=(
+      openssl-fips-provider
+    )
 
     # Check to make sure that we don't already have a full or partial
     # RockyLinux install.
