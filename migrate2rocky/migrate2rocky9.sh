@@ -273,6 +273,12 @@ pre_check () {
 'migrate2rocky9. See the README file for details.'
     fi
 
+    if ! fips-mode-setup --check | grep -q 'is disabled'; then
+      exit_message \
+'Migration from a system that has FIPS mode enabled is not supported by '\
+'migrate2rocky9. Please disable FIPS mode before running migrate2rocky9.'
+    fi
+
     dnf -y check || exit_message \
 'Errors found in dnf/rpm database.  Please correct before running '\
 'migrate2rocky9.'
