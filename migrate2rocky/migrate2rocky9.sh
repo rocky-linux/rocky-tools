@@ -273,7 +273,7 @@ pre_check () {
 'migrate2rocky9. See the README file for details.'
     fi
 
-    if ! fips-mode-setup --check | grep -q 'is disabled'; then
+    if fips-mode-setup --is-enabled; then
       exit_message \
 'Migration from a system that has FIPS mode enabled is not supported by '\
 'migrate2rocky9. Please disable FIPS mode before running migrate2rocky9.'
@@ -332,6 +332,7 @@ bin_check() {
     bins=(
         rpm dnf awk column tee tput mkdir cat arch sort uniq rmdir df
         rm head curl sha512sum mktemp systemd-detect-virt sed grep
+        fips-mode-setup
     )
     if [[ $update_efi ]]; then
         bins+=(findmnt grub2-mkconfig efibootmgr mokutil lsblk)
