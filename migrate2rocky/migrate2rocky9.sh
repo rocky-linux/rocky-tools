@@ -137,6 +137,8 @@ shopt -s nullglob
 SUPPORTED_MAJOR="9"
 SUPPORTED_PLATFORM="platform:el$SUPPORTED_MAJOR"
 ARCH=$(arch)
+CONTENT_DIR="pub/rocky"
+RELEASE_VER="$SUPPORTED_MAJOR"
 
 gpg_key_url="https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9"
 gpg_key_sha512="ead288baa8daad12d6f340f1a392d47413f8614425673fe310e82d4ead94ca15eb2e1329b30389e6a7f93dd406da255df410306cffd7a1a24f0dfb4c8e23fbfe"
@@ -146,10 +148,13 @@ unset tmp_sm_ca_dir
 
 # all repos must be signed with the same key given in $gpg_key_url
 declare -A repo_urls
-repo_urls=(
-    [rockybaseos]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/BaseOS/$ARCH/os/"
-    [rockyappstream]="https://dl.rockylinux.org/pub/rocky/${SUPPORTED_MAJOR}/AppStream/$ARCH/os/"
-)
+assign_repo_urls() {
+    repo_urls=(
+         [rockybaseos]="https://dl.rockylinux.org/$CONTENT_DIR/$RELEASE_VER/BaseOS/$ARCH/os/"
+         [rockyappstream]="https://dl.rockylinux.org/$CONTENT_DIR/$RELEASE_VER/AppStream/$ARCH/os/"
+    )
+}
+assign_repo_urls
 
 # These are additional packages that should always be installed.
 # (currently blank, but we add to it for an EFI boot system).
@@ -900,6 +905,7 @@ usage() {
       '-h Display this help' \
       '-r Convert to rocky' \
       '-V Verify switch' \
+      '-v RELEASE_VER Use vaulted repos in specyfic release version, for ex. 9.3' \
       '   !! USE WITH CAUTION !!'
   exit 1
 } >&2
@@ -983,6 +989,12 @@ package_swaps() {
         run
         exit
 EOF
+    if [[ $vault ]]; then
+        cp /etc/dnf/vars/contentdir /etc/dnf/vars/contentdir.backup
+        echo "$CONTENT_DIR" > /etc/dnf/vars/contentdir
+        echo "$RELEASE_VER" > /etc/dnf/vars/releasever
+        sed -i 's/^#baseurl/baseurl/; s/^mirrorlist/#\0/' /etc/yum.repos.d/*
+    fi
 
     # rocky-repos and rocky-gpg-keys are now installed, so we don't need the
     # key file anymore
@@ -1268,7 +1280,7 @@ establish_gpg_trust () {
 ## End actual work
 
 noopts=0
-while getopts "hrVR" option; do
+while getopts "hrVv:" option; do
   (( noopts++ ))
   case "$option" in
     h)
@@ -1280,6 +1292,12 @@ while getopts "hrVR" option; do
     V)
       verify_all_rpms=true
       ;;
+    v)
+        vault=true
+        RELEASE_VER=$OPTARG
+        CONTENT_DIR="vault/rocky"
+        assign_repo_urls
+        ;;
     *)
       errmsg $'Invalid switch\n'
       usage
@@ -1305,6 +1323,11 @@ if [[ $convert_to_rocky ]]; then
     establish_gpg_trust
     pre_update
     package_swaps
+    if [[ $vault ]]; then
+        rm /etc/dnf/vars/releasever
+        mv /etc/dnf/vars/contentdir.backup /etc/dnf/vars/contentdir
+        sed -i 's/^#mirrorlist/mirrorlist/; s/^baseurl/#\0/' /etc/yum.repos.d/*
+    fi
 fi
 
 if [[ $verify_all_rpms && $convert_to_rocky ]]; then
