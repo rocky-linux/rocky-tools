@@ -761,7 +761,7 @@ collect_system_info () {
     # RockyLinux install.
     if [[ $(rpm -qa "${!provides_pkg_map[@]}") ]]; then
         exit_message \
-$'Found a full or partial RockyLinux install already in place.  Aborting\n'
+$'Found a full or partial RockyLinux install already in place.  Aborting\n'\
 $'because continuing with the migration could cause further damage to system.'
     fi
 
