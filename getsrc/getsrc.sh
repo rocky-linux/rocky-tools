@@ -130,7 +130,7 @@ function download {
 	    printf 'Invalid or corrupted file downloaded.  Trying next URL.\n'
 	    continue
 	}
-	
+
 	printf 'Downloaded: %s  ----->  %s\n' "$url" "${macros[FILENAME]}"
 	return
     done
