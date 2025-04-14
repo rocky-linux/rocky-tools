@@ -727,6 +727,7 @@ collect_system_info () {
     )
     addl_pkg_removes=(
       openssl-fips-provider
+      openssl-fips-provider-so
     )
 
     # Check to make sure that we don't already have a full or partial
