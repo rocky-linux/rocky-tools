@@ -296,7 +296,7 @@ pre_check () {
 	    continue
 	fi
 
-	dir=${dirs[$((i++))]}
+	dir=${dirs[i++]}
 
 	mount_avail_map[$mount]=${avail%M}
 	(( mount_space_map[$mount]+=dir_space_map[$dir] ))
@@ -850,14 +850,14 @@ $'because continuing with the migration could cause further damage to system.'
     disable_modules=()
     local i gl repl mod
     for i in "${!enabled_modules[@]}"; do
-        mod=${enabled_modules[$i]}
+        mod=${enabled_modules[i]}
         for gl in "${!module_glob_map[@]}"; do
             repl=${module_glob_map[$gl]}
             mod=${mod/$gl/$repl}
         done
-        if [[ $mod != "${enabled_modules[$i]}" ]]; then
-            disable_modules+=("${enabled_modules[$i]}")
-            enabled_modules[$i]=$mod
+        if [[ $mod != "${enabled_modules[i]}" ]]; then
+            disable_modules+=("${enabled_modules[i]}")
+            enabled_modules[i]=$mod
         fi
     done
 
@@ -1231,7 +1231,7 @@ fix_efi () (
     grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
             exit_message "Error updating the grub config."
     for i in "${!efi_disk[@]}"; do
-        efibootmgr -c -d "/dev/${efi_disk[$i]}" -p "${efi_partition[$i]}" \
+        efibootmgr -c -d "/dev/${efi_disk[i]}" -p "${efi_partition[i]}" \
             -L "Rocky Linux" -l "/EFI/rocky/shim${cpu_arch_suffix_map[$ARCH]}.efi" ||
             exit_message "Error updating uEFI firmware."
     done
