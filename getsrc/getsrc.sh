@@ -16,7 +16,7 @@ https://sources.build.resf.org/%HASH%
 https://git.centos.org/sources/%PKG%/%BRANCH%/%HASH%
 https://sources.stream.centos.org/sources/rpms/%PKG%/%FILENAME%/%SHATYPE%/%HASH%/%FILENAME%
 https://src.fedoraproject.org/repo/pkgs/%PKG%/%FILENAME%/%SHATYPE%/%HASH%/%FILENAME%
-https://ax8edlmsvvfp.compat.objectstorage.us-phoenix-1.oraclecloud.com/mship-srpm1/%HASH%
+http://sources.openela.org/%HASH%
 )
 
 # These are glob patterns.  They should be in the same order as the lookasides
