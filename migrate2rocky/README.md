@@ -150,6 +150,23 @@ package for the repo that you need):
 rpm2cpio <(curl http://mirror.centos.org/centos/8/extras/x86_64/os/Packages/centos-release-gluster9-1.0-1.el8.noarch.rpm) | cpio -iD/ \*.repo
 ```
 
+#### Error "specified switch root path /sysroot does not seem to be an os tree"
+
+This issue is caused by a GRUB issue after installation. Has been seen on Hetzner Dedicated Server upgrades from CentOS 8.4 -> Rocky 8.X
+In order to resolve this issue, boot your dedicated server into a rescue system (for example, hetzner rescue system)
+From here, you need to locate your partitions via `fdisk -l` and mount your `/` partition into a directory of your choosing (or `/mnt`).
+
+Run the following commands (be sure to change the "mnt" to the directory of your mounted drives).
+> Note: You may need to mount your `/boot` directory if your `/` and `/boot` directories are different. You can do this by doing `mount /dev/XXX /mnt/boot`
+```
+mount --rbind /dev  /mnt/dev
+mount --rbind /proc /mnt/proc
+mount --rbind /sys  /mnt/sys
+chroot /mnt
+
+grub2-mkconfig -o /boot/grub2/grub.cfg
+```
+
 ### Latest Version
 
 The latest version of this script can be found [here](https://github.com/rocky-linux/rocky-tools/).
