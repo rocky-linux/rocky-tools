@@ -53,11 +53,11 @@ opts=(-vrlptDSH --exclude="*.~tmp~" --delete-delay --delay-updates)
 #
 # A complete list of mirrors can be found at
 # https://mirrors.rockylinux.org/mirrormanager/mirrors/Rocky
-src="msync.rockylinux.org::rocky/mirror/pub/rocky"
-
-# Your local path. Change to whatever fits your system.
-# $mirrormodule is also used in syslog output.
 mirrormodule="rocky-linux"
+src="msync.rockylinux.org::${mirrormodule}"
+
+# Your local path. Change to whatever fits your system or setup.
+# $mirrormodule is also used in syslog output.
 dst="/mnt/mirrorserver/${mirrormodule}"
 
 filelistfile="fullfiletimelist-rocky"
