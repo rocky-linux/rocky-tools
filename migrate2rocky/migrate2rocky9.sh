@@ -452,6 +452,7 @@ _repoinfo () {
 declare -g -A repoinfo_results_cache=()
 repoinfo () {
     local k
+    [[ $1 ]] || return 1
     if [[ ! ${repoinfo_results_cache[$1]} ]]; then
 	_repoinfo "$@" || return
 	repoinfo_results_cache[$1]=1
@@ -706,6 +707,8 @@ collect_system_info () {
     done
 
     # First get info for the baseos repo
+    [[ ${repo_map[baseos]} ]] ||
+        exit_message "Could not identify the source BaseOS repository. Check that it is enabled."
     repoinfo "${repo_map[baseos]}" ||
         exit_message "Failed to fetch info for repository ${repo_map[baseos]}."
 
@@ -974,6 +977,7 @@ package_swaps() {
     fi
 
     # Use dnf shell to swap the system packages out.
+    local swap_status=0
     safednf -y shell --disablerepo=\* --noautoremove \
 	"${dist_repourl_swaps[@]}" \
         --setopt=protected_packages= --setopt=keepcache=True \
@@ -984,6 +988,10 @@ package_swaps() {
         run
         exit
 EOF
+    swap_status=$?
+    if (( swap_status )); then
+        exit_message "Package swap failed. Stopping before forced RPM recovery."
+    fi
 
     # rocky-repos and rocky-gpg-keys are now installed, so we don't need the
     # key file anymore
@@ -1002,22 +1010,6 @@ EOF
             "${addl_pkg_removes[@]}" | sort -u
     )
 
-    if (( ${#check_removed[@]} )); then
-        infomsg '%s' $'\n' \
-            "Packages found on system that should still be removed.  Forcibly" \
-            " removing them with rpm:"$'\n'
-        # Removed packages still found on the system.  Forcibly remove them.
-        for pkg in "${check_removed[@]}"; do
-            # Extra safety measure, skip if empty string
-            if [[ -z $pkg ]]; then
-                continue
-            fi
-            printf '%s\n' "$pkg"
-            saferpm -e --allmatches --nodeps "$pkg" ||
-            saferpm -e --allmatches --nodeps --noscripts --notriggers "$pkg"
-        done
-    fi
-
     # Check to make sure we installed everything we were supposed to.
     readarray -t check_installed < <(
         {
@@ -1025,20 +1017,41 @@ EOF
             saferpm -qa --qf '%{NAME}\n' "${!installed_pkg_map[@]}" | sort -u
         } | sort | uniq -u
     )
+    local -A rpm_map
+    local -a file_list
+    if (( ${#check_installed[@]} )); then
+        # DNF shell can report success even when its transaction failed. Do not
+        # erase source packages unless every missing replacement is available.
+        for rpm in /var/cache/dnf/{rockybaseos,rockyappstream}-*/packages/*.rpm
+        do
+            local rpm_name
+            rpm_name=$(rpm -qp --qf '%{NAME}\n' --nodigest "$rpm" 2>/dev/null) ||
+                continue
+            [[ $rpm_name ]] && rpm_map[$rpm_name]=$rpm
+        done
+        for pkg in "${check_installed[@]}"; do
+            [[ ${rpm_map[$pkg]} ]] || exit_message \
+                "Missing cached replacement for $pkg. Stopping before forced RPM recovery."
+        done
+    fi
+
+    if (( ${#check_removed[@]} )); then
+        infomsg '%s' $'\n' \
+            "Packages found on system that should still be removed.  Forcibly" \
+            " removing them with rpm:"$'\n'
+        for pkg in "${check_removed[@]}"; do
+            [[ $pkg ]] || continue
+            printf '%s\n' "$pkg"
+            saferpm -e --allmatches --nodeps "$pkg" ||
+            saferpm -e --allmatches --nodeps --noscripts --notriggers "$pkg" ||
+                exit_message "Could not remove source package $pkg."
+        done
+    fi
+
     if (( ${#check_installed[@]} )); then
         infomsg '%s' $'\n' \
             "Some required packages were not installed by dnf.  Attempting to" \
             " force with rpm:"$'\n'
-
-        # Get a list of rpm packages to package names
-        local -A rpm_map
-        local -a file_list
-        for rpm in /var/cache/dnf/{rockybaseos,rockyappstream}-*/packages/*.rpm
-        do
-            rpm_map[$(
-                    rpm -q --qf '%{NAME}\n' --nodigest "$rpm" 2>/dev/null
-                    )]=$rpm
-        done
 
         # Attempt to install.
         for pkg in "${check_installed[@]}"; do
@@ -1060,11 +1073,10 @@ EOF
                     rm -rf "$file"
                 done
 
-                # Now try re-installing the package to replace the missing
-                # files.  Regardless of the outcome here we just accept it and
-                # move on and hope for the best.
+                # Do not continue with an incomplete release-package swap.
                 rpm -i --reinstall --force --nodeps --nodigest \
-                    "${rpm_map[$pkg]}" 2>/dev/null
+                    "${rpm_map[$pkg]}" 2>/dev/null ||
+                    exit_message "Could not install replacement package $pkg."
             fi
         done
     fi
@@ -1228,7 +1240,7 @@ efi_check () {
 
 # Called to update the EFI boot.
 fix_efi () (
-    grub2-mkconfig -o /boot/efi/EFI/rocky/grub.cfg ||
+    grub2-mkconfig -o /boot/grub2/grub.cfg ||
             exit_message "Error updating the grub config."
     for i in "${!efi_disk[@]}"; do
         efibootmgr -c -d "/dev/${efi_disk[i]}" -p "${efi_partition[i]}" \
@@ -1315,7 +1327,7 @@ if [[ $verify_all_rpms && $convert_to_rocky ]]; then
 fi
 
 if [[ $update_efi && $convert_to_rocky ]]; then
-    fix_efi
+    fix_efi || exit 1
 fi
 
 printf '\n\n\n'
