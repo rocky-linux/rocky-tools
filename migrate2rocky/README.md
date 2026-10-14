@@ -85,6 +85,26 @@ This especially happens on systems configured with a centralized package
 management like Katello (RedHat Satellite 6) or Uyuni (RedHat Satellite 5, SUSE
 Manager).
 
+#### Migration fails with "Unknown repo: ''" when no repositories are enabled
+
+`migrate2rocky9` looks up the source distribution's package repositories to
+map them to their Rocky Linux equivalents, so the repositories must be present
+and enabled.  On a system without any enabled repositories (for example an
+unregistered RHEL machine whose repository configuration was removed) the
+script now stops early with a message naming the missing repository
+configuration instead of failing later with an empty repository name.
+
+Restore the repository configuration before migrating.  On a subscription
+managed RHEL system, for example:
+
+```bash
+subscription-manager repos --enable=rhel-9-for-x86_64-baseos-rpms \
+    --enable=rhel-9-for-x86_64-appstream-rpms
+```
+
+Use the repository ids appropriate for your variant and architecture, then run
+`migrate2rocky9.sh` again.
+
 #### RHEL migrations show error messages during conversion
 
 ```
