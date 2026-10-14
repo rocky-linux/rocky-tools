@@ -633,12 +633,25 @@ collect_system_info () {
 
     # We need a list of enabled repositories
     local -a enabled_repos=()
+    local repolist_output
     declare -g -A enabled_repo_check=()
     declare -g -a dist_repourl_swaps=()
-    readarray -s 1 -t enabled_repos < <(dnf -q -y repolist --enabled)
+    repolist_output=$(dnf -q -y repolist --enabled) ||
+	exit_message \
+'Failed to list the enabled repositories.  Please make sure that the '\
+'package repositories for the source distribution are present and '\
+'enabled, then run migrate2rocky9 again.'
+    readarray -s 1 -t enabled_repos <<<"$repolist_output"
     for r in "${enabled_repos[@]}"; do
+	[[ $r ]] || continue
 	enabled_repo_check[${r%% *}]=1
     done
+    if (( ! ${#enabled_repo_check[@]} )); then
+	exit_message \
+'There are no enabled repositories on this system.  Please restore and '\
+'enable the package repositories of the source distribution, then run '\
+'migrate2rocky9 again.'
+    fi
 
 
     # ...and finally set a number of dnf options to replace the baseurl of these
